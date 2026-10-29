@@ -17,7 +17,6 @@ import {
 	createIssues,
 	getAttachment,
 	getIssue,
-	lastUsedApp,
 	listAttachments,
 	listEvents,
 	listIssues,
@@ -309,7 +308,7 @@ const getIssueTool: Tool = {
 const createIssueTool: Tool = {
 	name: 'create_issue',
 	description:
-		'File a new issue. The title may use quick-add tokens: "bug:"/"feat:"/"task:"/"imp:" prefix, @app, !high, +label, ^milestone, ~size, *fri (due). Without an app it goes to the app of your last issue.',
+		'File a new issue. The title may use quick-add tokens: "bug:"/"feat:"/"task:"/"imp:" prefix, @app, !high, +label, ^milestone, ~size, *fri (due). Without an app it goes to Inbox.',
 	inputSchema: {
 		type: 'object',
 		properties: {
@@ -329,7 +328,7 @@ const createIssueTool: Tool = {
 	async run(args, { user, origin }) {
 		const parsed = parseLine(String(args.title ?? '').split('\n')[0]);
 		if (!parsed) error(400, 'The title is empty');
-		const app = str(args.app) ?? parsed.apps[0] ?? (await lastUsedApp(user.id));
+		const app = str(args.app) ?? parsed.apps[0];
 		const [item] = cleanNewIssues([
 			{
 				...parsed,
@@ -342,7 +341,7 @@ const createIssueTool: Tool = {
 				parentId: args.parent_id ? Number(args.parent_id) : undefined
 			}
 		]);
-		if (!item) error(400, 'Say which app it belongs to (no apps exist yet)');
+		if (!item) error(400, 'The title is empty');
 		const { ids } = await createIssues([item], user.id);
 		const patch: IssuePatch = {};
 		if (str(args.severity)) patch.severity = args.severity as never;

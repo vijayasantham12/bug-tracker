@@ -1,7 +1,7 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { parseQuickAdd } from '#lib/quickadd.ts';
-import { addLink, cleanUrl, createIssues, lastUsedApp } from '#lib/server/repo.ts';
+import { addLink, cleanUrl, createIssues } from '#lib/server/repo.ts';
 import { requireUser } from '#lib/server/session.ts';
 import { cleanNewIssues } from '#lib/server/validate.ts';
 import { storeAttachments } from '#lib/server/attachments.ts';
@@ -18,7 +18,7 @@ interface CaptureBody {
 	 */
 	content?: string;
 	filename?: string;
-	/** used when the text has no @app; defaults to the app of your last issue */
+	/** used when the text has no @app; otherwise captures go to Inbox */
 	app?: string;
 }
 
@@ -55,7 +55,7 @@ export const POST: RequestHandler = async ({ request, locals, url }) => {
 	if (!text) text = mime ? 'Shared screenshot' : sharedText.split('\n')[0].slice(0, 120);
 	if (!text) error(400, 'Nothing to add: send some text or an image');
 
-	const app = body.app?.trim() || (await lastUsedApp(user.id));
+	const app = body.app?.trim();
 	const items = cleanNewIssues(
 		parseQuickAdd(text).map((it) => ({
 			...it,
@@ -65,7 +65,7 @@ export const POST: RequestHandler = async ({ request, locals, url }) => {
 				.join('\n\n')
 		}))
 	);
-	if (!items.length) error(400, 'Add an app with @app (no apps exist yet)');
+	if (!items.length) error(400, 'Nothing to add (each issue needs a title)');
 
 	const { ids } = await createIssues(items, user.id);
 	afterIssuesCreated(ids, user.id);

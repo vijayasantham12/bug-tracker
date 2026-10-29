@@ -94,18 +94,20 @@ bug: checkout crashes on safari @shop @admin !high +payments -- only on iOS 18
 feat: csv export @shop
 ```
 
-| Token                                          | Meaning                                                                   |
-| ---------------------------------------------- | ------------------------------------------------------------------------- |
-| `bug:` `feat:` `task:` `imp:`                  | type (falls back to the type picker on the left)                          |
-| `@app`                                         | app; repeat to file the same issue in several apps; new names are created |
-| `!urgent` `!high` `!normal` `!low` / `!0`–`!3` | priority (default normal)                                                 |
-| `+label`                                       | labels                                                                    |
-| `^v1.3`                                        | milestone (created if new)                                                |
-| `~xs` `~s` `~m` `~l` `~xl`                     | size                                                                      |
-| `*fri` `*tomorrow` `*2w` `*nov5` `*2026-11-05` | due date (weekdays mean the next one, never today)                        |
-| `-- text`                                      | description                                                               |
+| Token                                          | Meaning                                                                      |
+| ---------------------------------------------- | ---------------------------------------------------------------------------- |
+| `bug:` `feat:` `task:` `imp:`                  | type (falls back to the type picker on the left)                             |
+| `@app`                                         | app; repeat for a copy in each app, linked as related; new names are created |
+| `!urgent` `!high` `!normal` `!low` / `!0`–`!3` | priority (default normal)                                                    |
+| `+label`                                       | labels                                                                       |
+| `^v1.3`                                        | milestone (created if new)                                                   |
+| `~xs` `~s` `~m` `~l` `~xl`                     | size                                                                         |
+| `*fri` `*tomorrow` `*2w` `*nov5` `*2026-11-05` | due date (weekdays mean the next one, never today)                           |
+| `-- text`                                      | description                                                                  |
 
-Without `@app`, the app picker on the right is used (remembered per browser). Typing `@`, `^`, `+` or `*`
+Without `@app`, the app picker on the right is used (remembered per browser). Choose **Inbox (no app)**
+to capture without organizing; this is the default on the Inbox page and when no app has been chosen yet.
+Typing `@`, `^`, `+` or `*`
 suggests apps, milestones, labels or dates; `Tab` takes the first. Leading list bullets (`-`, `1.`, `- [ ]`)
 are ignored, so a pasted list becomes one issue per line. Similar open issues are flagged as you type.
 
@@ -155,7 +157,7 @@ Reminders and digests are checked once a minute by the server process.
 Settings → **API tokens** creates a personal token (shown once, stored hashed). `POST /api/capture` takes
 `{ "text": "quick-add syntax", "content": "<base64 image or text>" }` with `Authorization: Bearer <token>`:
 an image is attached, a shared URL becomes a link, other text goes in the description, and without `@app`
-it uses the app of your last issue. Settings has step-by-step instructions for an iOS Shortcut that puts
+it goes to Inbox (or pass an explicit `app` in the JSON). Settings has step-by-step instructions for an iOS Shortcut that puts
 **Add bug** in the Share sheet (iOS doesn't support web-app share targets). Tokens only work for `/api/*`.
 
 ## Claude Code (MCP)
@@ -208,6 +210,12 @@ is installed; earlier push notifications cannot be recovered.
 
 ## Views
 
+- **Inbox** (`/?inbox=1`) — captures without an app. Add tasks immediately, then use the app picker
+  on each row, the bulk **Move to app…** action, or the issue's App field to organize them later.
+  Moving an issue to an app removes it from Inbox; choosing **Inbox (no app)** moves it back.
+  The navigation count shows open Inbox issues. Inbox captures also work with attachments, reminders,
+  subtasks, Today, meeting capture, API capture, and MCP. API/MCP captures without an app go to Inbox.
+
 - **Today** (top of Dashboard) — your personal, manually ordered focus list. Click ☆ beside an open
   issue in the list or dashboard suggestions, or **Add to Today** on its detail page. Pick 1–3 issues
   (there is no hard limit), drag the handle or use ↑ / ↓ to reorder, and click ✓ to mark an issue Done
@@ -226,6 +234,12 @@ is installed; earlier push notifications cannot be recovered.
   Also filter by milestone, severity and environment; the ☑ 2/5 subtask badge lists an issue's subtasks.
   Milestone and size are editable inline.
   100 issues per page (`?page=2`); changing a filter or sort goes back to page 1.
+- **Date range** (Issues filters) — choose **Created**, **Updated**, **Due**, or **Closed**, then set
+  **From**, **To**, or both. Both dates are inclusive; a missing bound is unrestricted. Dates use
+  the database timezone, consistent with the existing overdue filters. Closed dates only match issues
+  with a closing date, so select Closed or All statuses when looking for completed work.
+  Date ranges work with other filters, pagination and saved views, and remain in the URL
+  (`?date=due&from=2026-11-01&to=2026-11-30`). Invalid dates are ignored; reversed URL bounds are swapped.
 - **Issue** (`/issues/:id`) — description, labels, found-in / fixed-in version, due date, comments, and a
   history of every field change. `Esc` goes back to the list.
   Planning: milestone, size, parent issue (subtasks are one level deep; add them from the parent's page).

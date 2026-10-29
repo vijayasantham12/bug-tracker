@@ -25,8 +25,28 @@ export type Sort = (typeof SORTS)[number];
 
 export const PAGE_SIZE = 100;
 
+export const DATE_FIELDS = [
+	{ value: 'created', label: 'Created' },
+	{ value: 'updated', label: 'Updated' },
+	{ value: 'due', label: 'Due' },
+	{ value: 'closed', label: 'Closed' }
+] as const;
+export type DateField = (typeof DATE_FIELDS)[number]['value'];
+
+/** A real calendar date, safe to pass to Postgres as a date. */
+export function filterDate(value: string | null): string {
+	if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value) || value.startsWith('0000')) return '';
+	const date = new Date(`${value}T00:00:00Z`);
+	return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value ? value : '';
+}
+
 export interface Filters {
 	apps: string[];
+	/** Only issues not yet assigned to an app. */
+	inbox: boolean;
+	dateField: DateField;
+	dateFrom: string;
+	dateTo: string;
 	/** 'open' | 'closed' | 'all' | comma-separated status ids */
 	status: string;
 	types: IssueType[];
@@ -63,8 +83,17 @@ const list = (v: string | null) => (v ? v.split(',').filter(Boolean) : []);
 
 export function parseFilters(sp: { get(name: string): string | null }): Filters {
 	const sort = sp.get('sort') as Sort;
+	const inbox = sp.get('inbox') === '1';
+	let dateFrom = filterDate(sp.get('from'));
+	let dateTo = filterDate(sp.get('to'));
+	if (dateFrom && dateTo && dateFrom > dateTo) [dateFrom, dateTo] = [dateTo, dateFrom];
+	const dateField = sp.get('date') as DateField;
 	return {
-		apps: list(sp.get('app')),
+		apps: inbox ? [] : list(sp.get('app')),
+		inbox,
+		dateField: DATE_FIELDS.some((f) => f.value === dateField) ? dateField : 'created',
+		dateFrom,
+		dateTo,
 		status: sp.get('status') || 'open',
 		types: list(sp.get('type')).filter((t): t is IssueType => TYPES.includes(t as IssueType)),
 		priorities: list(sp.get('p'))
@@ -93,7 +122,11 @@ export function parseFilters(sp: { get(name: string): string | null }): Filters 
 /** Builds a query string, omitting defaults so URLs stay short. */
 export function filtersToQuery(f: Filters): string {
 	const sp = new URLSearchParams();
-	if (f.apps.length) sp.set('app', f.apps.join(','));
+	if (f.inbox) sp.set('inbox', '1');
+	else if (f.apps.length) sp.set('app', f.apps.join(','));
+	if (f.dateField !== 'created') sp.set('date', f.dateField);
+	if (f.dateFrom) sp.set('from', f.dateFrom);
+	if (f.dateTo) sp.set('to', f.dateTo);
 	if (f.status !== 'open') sp.set('status', f.status);
 	if (f.types.length) sp.set('type', f.types.join(','));
 	if (f.priorities.length) sp.set('p', f.priorities.join(','));

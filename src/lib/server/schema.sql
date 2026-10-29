@@ -24,7 +24,7 @@ create table if not exists statuses (
 
 create table if not exists issues (
 	id serial primary key,
-	app_id int not null references apps (id) on delete restrict,
+	app_id int references apps (id) on delete restrict,
 	type text not null default 'bug' check (type in ('bug', 'feature', 'task', 'improvement')),
 	title text not null,
 	description text not null default '',
@@ -42,6 +42,9 @@ create table if not exists issues (
 create index if not exists issues_app on issues (app_id);
 create index if not exists issues_status on issues (status_id);
 create index if not exists issues_labels on issues using gin (labels);
+
+-- Unorganized captures live in Inbox until assigned to an app.
+alter table issues alter column app_id drop not null;
 
 -- comments and field-change history
 create table if not exists issue_events (

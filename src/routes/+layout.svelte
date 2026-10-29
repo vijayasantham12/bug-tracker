@@ -13,14 +13,18 @@
 
 	const links = [
 		{ href: '/', label: 'Issues' },
+		{ href: '/?inbox=1', label: 'Inbox' },
 		{ href: '/dashboard', label: 'Dashboard' },
 		{ href: '/capture', label: 'Capture' },
 		{ href: '/settings', label: 'Settings' }
 	];
 	const active = (href: string) =>
-		href === '/'
-			? page.url.pathname === '/' || page.url.pathname.startsWith('/issues')
-			: page.url.pathname.startsWith(href);
+		href === '/?inbox=1'
+			? page.url.pathname === '/' && page.url.searchParams.get('inbox') === '1'
+			: href === '/'
+				? (page.url.pathname === '/' && page.url.searchParams.get('inbox') !== '1') ||
+					page.url.pathname.startsWith('/issues')
+				: page.url.pathname.startsWith(href);
 
 	// `n` anywhere but the list (which has its own box) opens quick add in a popup; `m` opens capture
 	let quickOpen = $state(false);
@@ -60,10 +64,13 @@
 			<a href={nav.listUrl} class="font-semibold tracking-tight">🐞 bugs</a>
 			{#each links as l (l.href)}
 				<a
-					href={l.href === '/' ? nav.listUrl : l.href}
+					href={l.href === '/' && !nav.listUrl.includes('inbox=1') ? nav.listUrl : l.href}
 					class={active(l.href)
 						? 'text-zinc-900 dark:text-white'
-						: 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'}>{l.label}</a
+						: 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'}
+					>{l.label}{#if l.label === 'Inbox' && data.inboxCount}<span
+							class="ml-1 text-xs opacity-60">{data.inboxCount}</span
+						>{/if}</a
 				>
 			{/each}
 			<span class="ml-auto hidden text-xs text-zinc-400 md:inline">

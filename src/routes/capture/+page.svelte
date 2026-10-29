@@ -72,7 +72,6 @@
 		} catch {
 			// storage blocked: start empty
 		}
-		if (!defaults.app) defaults.app = activeApps[0]?.name ?? '';
 		restored = true;
 		input?.focus();
 	});
@@ -88,7 +87,6 @@
 
 	async function addAll() {
 		if (!items.length || busy) return;
-		if (items.some((it) => !it.apps.length)) return notify('Pick a default app, or add @app', true);
 		busy = true;
 		try {
 			const { ids, subtaskIds } = await api<{ ids: number[]; subtaskIds: number[] }>(
@@ -172,7 +170,7 @@
 	<label class="flex items-center gap-1 text-xs text-zinc-500"
 		>app
 		<select bind:value={defaults.app} class="input py-0.5">
-			<option value="">—</option>
+			<option value="">Inbox (no app)</option>
 			{#each activeApps as a (a.id)}<option value={a.name}>{a.name}</option>{/each}
 		</select>
 	</label>
@@ -260,7 +258,7 @@ Tab indents · Enter continues the list · Ctrl+Enter adds all`}
 						<span class="text-xs {TYPE_CLASS[it.type]}">{TYPE_LABEL[it.type]}</span>
 						<span class="font-medium">{it.title}</span>
 						{#each it.apps as a (a)}<span class="text-xs text-zinc-500">@{a}</span>{:else}<span
-								class="text-xs text-red-500">no app</span
+								class="text-xs text-zinc-500">Inbox</span
 							>{/each}
 						{#if it.priority !== undefined && it.priority !== 2}<span
 								class="text-xs {PRIORITY_CLASS[it.priority]}">{PRIORITIES[it.priority].label}</span

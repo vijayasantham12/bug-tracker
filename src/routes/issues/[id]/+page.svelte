@@ -116,7 +116,7 @@
 			items: [
 				{
 					title,
-					apps: [issue.appName],
+					apps: issue.appId === null ? [] : [issue.appName],
 					type: 'task',
 					parentId: issue.id,
 					milestone: issue.milestoneName ?? undefined
@@ -837,9 +837,11 @@
 			{@render label('App')}
 			<select
 				class="prop"
-				value={issue.appId}
-				onchange={(e) => save({ appId: Number(e.currentTarget.value) })}
+				value={issue.appId ?? ''}
+				onchange={(e) =>
+					save({ appId: e.currentTarget.value ? Number(e.currentTarget.value) : null })}
 			>
+				<option value="">Inbox (no app)</option>
 				{#each data.apps as a (a.id)}<option value={a.id}>{a.name}</option>{/each}
 			</select>
 

@@ -82,7 +82,7 @@ export interface Status {
 
 export interface Issue {
 	id: number;
-	appId: number;
+	appId: number | null;
 	appName: string;
 	appColor: string;
 	type: IssueType;
@@ -161,7 +161,7 @@ export interface IssueEvent {
 export interface NewIssue {
 	title: string;
 	description?: string;
-	/** App names; unknown names are created. One issue is created per app. */
+	/** App names; unknown names are created. Empty captures one issue in Inbox. */
 	apps: string[];
 	type?: IssueType;
 	priority?: number;
@@ -181,7 +181,7 @@ export type NewSubtask = Omit<NewIssue, 'apps' | 'milestone' | 'parentId' | 'sub
 export type IssuePatch = Partial<{
 	title: string;
 	description: string;
-	appId: number;
+	appId: number | null;
 	type: IssueType;
 	statusId: number;
 	priority: number;

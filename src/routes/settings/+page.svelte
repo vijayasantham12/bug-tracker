@@ -616,10 +616,10 @@
 			</ol>
 			<p class="mt-2 text-xs text-zinc-500">
 				Use it from Photos or a screenshot (attached as an image), Safari (the page becomes a link
-				on the issue) or any text. Without <code>@app</code> it goes to the app of your last issue.
-				Leave the question empty and a screenshot gets a dated title. The phone must be able to
-				reach <code>{data.captureUrl}</code>; if you only run this on your laptop or LAN, the
-				shortcut works only on that network.
+				on the issue) or any text. Without <code>@app</code> it goes to Inbox. Leave the question
+				empty and a screenshot gets a dated title. The phone must be able to reach
+				<code>{data.captureUrl}</code>; if you only run this on your laptop or LAN, the shortcut
+				works only on that network.
 			</p>
 		</details>
 

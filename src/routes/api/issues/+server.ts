@@ -10,7 +10,7 @@ import type { IssuePatch, NewIssue } from '#lib/types.ts';
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const { items } = (await request.json()) as { items: NewIssue[] };
 	const clean = cleanNewIssues(items);
-	if (!clean.length) error(400, 'Nothing to add (each issue needs a title and an app)');
+	if (!clean.length) error(400, 'Nothing to add (each issue needs a title)');
 	const user = requireUser(locals);
 	const created = await createIssues(clean, user.id);
 	afterIssuesCreated([...created.ids, ...created.subtaskIds], user.id);

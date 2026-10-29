@@ -50,7 +50,8 @@ const BLOCKED_BY_OPEN = sql`exists (
 const BLOCKED_STATUS = sql`lower(s.name) = 'blocked'`;
 
 const issueColumns = sql`
-	i.id, i.app_id, a.name as app_name, a.color as app_color, i.type, i.title, i.description,
+	i.id, i.app_id, coalesce(a.name, 'Inbox') as app_name,
+	coalesce(a.color, '#64748b') as app_color, i.type, i.title, i.description,
 	i.status_id, i.priority, i.labels, i.version, i.fixed_in, i.due_date::text as due_date,
 	i.milestone_id, (select m.name from milestones m where m.id = i.milestone_id) as milestone_name,
 	i.parent_id, i.size, i.severity, i.environment, i.repeat, i.remind_at,
@@ -90,6 +91,7 @@ export function prefixTsQuery(q: string): string | null {
 /** One page of matching issues plus the total match count. */
 export async function listIssues(f: Filters): Promise<{ issues: Issue[]; total: number }> {
 	const where = [sql`true`];
+	if (f.inbox) where.push(sql`i.app_id is null`);
 	if (f.apps.length)
 		where.push(sql`lower(a.name) = any(${f.apps.map((a) => a.toLowerCase())}::text[])`);
 	if (f.status === 'open') where.push(sql`not s.is_closed`);
@@ -109,6 +111,15 @@ export async function listIssues(f: Filters): Promise<{ issues: Issue[]; total: 
 	if (f.sizes.length) where.push(sql`i.size = any(${f.sizes}::text[])`);
 	if (f.overdue) where.push(sql`i.due_date < current_date`);
 	if (f.dueWeek) where.push(sql`i.due_date between current_date and current_date + 7`);
+	const dateColumn = {
+		created: sql`i.created_at`,
+		updated: sql`i.updated_at`,
+		due: sql`i.due_date`,
+		closed: sql`i.closed_at`
+	}[f.dateField];
+	if (f.dateFrom) where.push(sql`${dateColumn} >= ${f.dateFrom}::date`);
+	// Half-open upper bound includes the entire To day for timestamp fields.
+	if (f.dateTo) where.push(sql`${dateColumn} < (${f.dateTo}::date + 1)`);
 	if (f.blocked) where.push(sql`(${BLOCKED_STATUS} or ${BLOCKED_BY_OPEN})`);
 	// full text over title, description and comments; the title ilike keeps substrings like
 	// "checkout.ts" or "500" findable, which the english parser splits or drops
@@ -135,7 +146,7 @@ export async function listIssues(f: Filters): Promise<{ issues: Issue[]; total: 
 			? sql`ts_rank(i.search, ${query}) desc, i.id desc`
 			: sql`${SORT_SQL[f.sort]} ${dir}, i.id desc`;
 
-	const from = sql`from issues i join apps a on a.id = i.app_id join statuses s on s.id = i.status_id`;
+	const from = sql`from issues i left join apps a on a.id = i.app_id join statuses s on s.id = i.status_id`;
 
 	const [issues, [{ total }]] = await Promise.all([
 		sql<Issue[]>`
@@ -151,9 +162,17 @@ export async function listIssues(f: Filters): Promise<{ issues: Issue[]; total: 
 
 export async function getIssue(id: number) {
 	const [issue] = await sql<Issue[]>`
-		select ${issueColumns} from issues i join apps a on a.id = i.app_id where i.id = ${id}
+		select ${issueColumns} from issues i left join apps a on a.id = i.app_id where i.id = ${id}
 	`;
 	return issue ?? null;
+}
+
+export async function inboxCount(): Promise<number> {
+	const [{ n }] = await sql<{ n: number }[]>`
+		select count(*)::int as n from issues i join statuses s on s.id = i.status_id
+		where i.app_id is null and not s.is_closed
+	`;
+	return n;
 }
 
 export function listEvents(issueId: number) {
@@ -201,6 +220,7 @@ async function checkParent(tx: Tx, id: number | null, parentId: number) {
 
 /**
  * Creates one issue per (item, app), plus the item's subtasks under each of them.
+ * Copies of one item in several apps are related to each other.
  * Unknown app and milestone names are created on the fly. `ids` are the top-level issues.
  */
 export async function createIssues(
@@ -219,13 +239,16 @@ export async function createIssues(
 				? await ensureMilestone(tx as unknown as Tx, item.milestone)
 				: null;
 			if (item.parentId) await checkParent(tx as unknown as Tx, null, item.parentId);
-			for (const name of item.apps) {
-				const key = name.toLowerCase();
-				if (!appIds.has(key)) appIds.set(key, await ensureApp(tx as unknown as Tx, name));
+			const copies: number[] = [];
+			for (const name of item.apps.length ? item.apps : [null]) {
+				const key = name?.toLowerCase();
+				if (name && key && !appIds.has(key))
+					appIds.set(key, await ensureApp(tx as unknown as Tx, name));
+				const appId = key ? appIds.get(key)! : null;
 				const [row] = await tx<{ id: number }[]>`
 					insert into issues ${tx({
-						appId: appIds.get(key)!,
-						type: item.type ?? 'bug',
+						appId,
+						type: item.type ?? (appId === null ? 'task' : 'bug'),
 						title: item.title,
 						description: item.description ?? '',
 						statusId: def.id,
@@ -240,10 +263,11 @@ export async function createIssues(
 					returning id
 				`;
 				ids.push(row.id);
+				copies.push(row.id);
 				for (const sub of item.subtasks ?? []) {
 					const [child] = await tx<{ id: number }[]>`
 						insert into issues ${tx({
-							appId: appIds.get(key)!,
+							appId,
 							type: sub.type ?? 'task',
 							title: sub.title,
 							description: sub.description ?? '',
@@ -261,6 +285,9 @@ export async function createIssues(
 					subtaskIds.push(child.id);
 				}
 			}
+			for (const [n, from] of copies.entries())
+				for (const to of copies.slice(n + 1))
+					await tx`insert into issue_relations (from_id, to_id, kind) values (${from}, ${to}, 'relates')`;
 		}
 		return { ids, subtaskIds };
 	});
@@ -847,7 +874,7 @@ export async function moveStatus(id: number, delta: -1 | 1) {
 export async function listTodayIssues(userId: number): Promise<Issue[]> {
 	return sql<Issue[]>`
 		select ${issueColumns} from today_issues t
-		join issues i on i.id = t.issue_id join apps a on a.id = i.app_id
+		join issues i on i.id = t.issue_id left join apps a on a.id = i.app_id
 		join statuses s on s.id = i.status_id
 		where t.user_id = ${userId} and not s.is_closed
 		order by t.position, t.issue_id
@@ -859,7 +886,7 @@ export async function listTodayIssues(userId: number): Promise<Issue[]> {
  * "Up next" / "quick wins" = still in the default status and not blocked by an open issue.
  */
 export async function dashboard() {
-	const from = sql`from issues i join apps a on a.id = i.app_id join statuses s on s.id = i.status_id`;
+	const from = sql`from issues i left join apps a on a.id = i.app_id join statuses s on s.id = i.status_id`;
 	const notStarted = sql`not s.is_closed and s.is_default and not ${BLOCKED_BY_OPEN}`;
 
 	const upNext = await sql<Issue[]>`
