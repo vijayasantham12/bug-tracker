@@ -67,8 +67,24 @@ export interface Milestone {
 	name: string;
 	dueDate: string | null;
 	done: boolean;
+	hillRevision: number;
 	openCount: number;
 	totalCount: number;
+}
+
+export interface HillScope {
+	id: number;
+	name: string;
+	color: string;
+	position: number;
+}
+
+export interface HillUpdate {
+	id: number;
+	note: string;
+	scopes: HillScope[];
+	createdAt: Date;
+	userName: string | null;
 }
 
 export interface Status {
@@ -88,6 +104,8 @@ export interface Issue {
 	type: IssueType;
 	title: string;
 	description: string;
+	stopped: string;
+	nextAction: string;
 	statusId: number;
 	priority: number;
 	labels: string[];
@@ -181,6 +199,8 @@ export type NewSubtask = Omit<NewIssue, 'apps' | 'milestone' | 'parentId' | 'sub
 export type IssuePatch = Partial<{
 	title: string;
 	description: string;
+	stopped: string;
+	nextAction: string;
 	appId: number | null;
 	type: IssueType;
 	statusId: number;
@@ -221,6 +241,17 @@ export interface SimilarIssue {
 	id: number;
 	title: string;
 	statusName: string;
+}
+
+/** Compact search result for the global command palette. */
+export interface SearchIssue {
+	id: number;
+	title: string;
+	appName: string;
+	appColor: string;
+	statusName: string;
+	isClosed: boolean;
+	nextAction: string;
 }
 
 /** Per-user notification switches; missing keys fall back to NOTIFY_DEFAULTS. */
@@ -264,4 +295,19 @@ export interface InboxNotification {
 	url: string;
 	createdAt: Date;
 	readAt: Date | null;
+}
+
+/** A recoverable issue; its original fields and related records stay in place. */
+export interface TrashedIssue {
+	id: number;
+	title: string;
+	appName: string;
+	description: string;
+	stopped: string;
+	nextAction: string;
+	deletedAt: Date;
+	expiresAt: Date;
+	parentId: number | null;
+	deletedWithParent: number | null;
+	trashedParentId: number | null;
 }

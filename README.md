@@ -135,6 +135,14 @@ On the list: `j`/`k` move, `x` selects, `Enter` opens, `s` `p` `t` `m` set statu
 milestone (then press a number) for the selected rows or the one under the cursor, `Esc` clears.
 Anywhere: `n` quick add, `m` capture, `/` search (list), `e` edit description, `Esc` back (issue page).
 
+**Ctrl+K / Cmd+K** opens the global command palette from any page, including while editing a field.
+Use it to search issue titles, descriptions, comments, and resume notes across apps and statuses, or type
+an issue number (`#123`) to jump directly. With an empty search, it shows recently updated issues and
+common actions. You can also find apps, active milestones, Today, Inbox, Capture, Trash, and Settings.
+Use **↑ / ↓** to select, **Enter** to open, and **Esc** to close; clicking the header's **Search** button
+works on mobile too. **New issue** opens quick add. The palette excludes trashed issues and preserves
+unsaved edits when closed. The shortcut stays inactive inside an existing quick-add popup to preserve its draft.
+
 ## Notifications
 
 Push notifications instead of email: Settings → **Notifications** → **Turn on for this device**, once per
@@ -210,6 +218,19 @@ is installed; earlier push notifications cannot be recovered.
 
 ## Views
 
+- **Milestones** (`/milestones`) — open a milestone's **Hill Chart** to track its main pieces of work.
+  Add named dots (for example Checkout, Email delivery, Launch marketing), then drag them uphill as
+  you resolve unknowns and downhill as you execute the plan. The peak means the approach is figured out;
+  the right edge means finished. Sliders and arrow keys also move dots; Shift+arrow moves ten steps,
+  Home/End go to the edges. Select a numbered piece below the chart to bring an overlapping dot forward.
+  Changes stay in a draft until **Save update**, with an optional note. **Cancel changes** restores the
+  saved chart. Each save keeps a dated snapshot with the author and note; **Older / Newer** browses the
+  latest 50 snapshots. Names and colors in old snapshots are preserved when dots are renamed or removed.
+  Positions are manual and independent of issue counts or milestone completion. Concurrent edits from
+  another tab are rejected rather than overwriting a newer update. Charts also link from Dashboard,
+  Settings, and a milestone-filtered issue list. Deleting a milestone deletes its chart and snapshots,
+  while its issues remain without a milestone.
+
 - **Inbox** (`/?inbox=1`) — captures without an app. Add tasks immediately, then use the app picker
   on each row, the bulk **Move to app…** action, or the issue's App field to organize them later.
   Moving an issue to an app removes it from Inbox; choosing **Inbox (no app)** moves it back.
@@ -259,6 +280,37 @@ is installed; earlier push notifications cannot be recovered.
 - **Settings** — custom statuses (order, color, closed flag, default), apps (rename, color, archive) and
   milestones (rename, due date, done, delete).
 
+## Resume work
+
+Each issue has **Where I stopped** and **Next action** fields below the description. Record findings,
+attempts, and the first concrete step for your next session. Click **Save note** or press **Ctrl+Enter**
+(**Cmd+Enter** on Mac); Cancel discards the draft, and leaving with unsaved notes asks first. Notes sync
+across devices, are searchable, and their changes appear in the issue history. Today shows the next action,
+or where you stopped if no next action is set. MCP `get_issue` reads the notes; `update_issue` accepts
+`stopped` and `next_action` (empty strings clear them). Each field allows up to 20,000 characters.
+
+## Trash
+
+**Move to Trash** on an issue or a bulk selection keeps the original issues, descriptions, resume notes,
+comments, history, attachments, links, and relations recoverable for **30 days**. Open **Trash** in the
+navigation to preview notes and restore an issue. Trashed issues are excluded from normal lists, search,
+counts, Today, duplicate hints, blocker checks, reminders, and daily summaries.
+
+Deleting a parent also moves its active subtasks. Restoring it restores those subtasks, while subtasks
+deleted separately stay in Trash. Restore a trashed parent before separately restoring one of its children.
+If the parent's recovery period has expired, a younger deleted child can be restored without the parent.
+Restoring preserves status and future reminders, clears expired reminders, and does not add work back to
+Today. MCP also provides `list_trash` (paginated) and `restore_issue`.
+
+The recovery deadline is enforced even when the server has been offline. The hourly cleanup permanently
+removes expired issues in batches and queues their attachment objects for deletion; failed storage cleanup
+is retried. Files stay in storage throughout the recovery period. Issues permanently deleted before this
+feature was installed cannot be recovered through Trash.
+
 ## Tests
 
 `pnpm test` (quick-add parser, app names, filters, Markdown safety), `pnpm check`, `pnpm lint`.
+
+Postgres regression tests for resume notes and Trash are opt-in with
+`BUG_TRACKER_TEST_DATABASE_URL=postgres://… pnpm test`. They create and remove a temporary isolated schema;
+the configured database role needs permission to create schemas. Without that variable they are skipped.

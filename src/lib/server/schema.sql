@@ -125,6 +125,28 @@ create table if not exists milestones (
 );
 create unique index if not exists milestones_name_lower on milestones (lower(name));
 
+alter table milestones add column if not exists hill_revision int not null default 0;
+
+create table if not exists milestone_hill_scopes (
+	id serial primary key,
+	milestone_id int not null references milestones (id) on delete cascade,
+	name text not null,
+	color text not null,
+	position smallint not null check (position between 0 and 100),
+	sort_order int not null default 0
+);
+create index if not exists milestone_hill_scopes_milestone on milestone_hill_scopes (milestone_id);
+
+create table if not exists milestone_hill_updates (
+	id serial primary key,
+	milestone_id int not null references milestones (id) on delete cascade,
+	user_id int references users (id) on delete set null,
+	note text not null default '',
+	scopes jsonb not null,
+	created_at timestamptz not null default now()
+);
+create index if not exists milestone_hill_updates_milestone on milestone_hill_updates (milestone_id, id desc);
+
 alter table issues add column if not exists milestone_id int references milestones (id) on delete set null;
 -- one level only (enforced in repo.ts): a subtask can't have subtasks
 alter table issues add column if not exists parent_id int references issues (id) on delete set null;
@@ -251,3 +273,18 @@ create unique index if not exists saved_views_user_name on saved_views (user_id,
 -- closing a repeating issue creates the next one (see spawnRepeats in repo.ts)
 alter table issues add column if not exists repeat text
 	check (repeat in ('daily', 'weekly', 'monthly', 'quarterly', 'yearly'));
+
+-- Resume context is independent of the issue description and stays with the issue in Trash.
+alter table issues add column if not exists stopped text not null default '';
+alter table issues add column if not exists next_action text not null default '';
+alter table issues add column if not exists deleted_at timestamptz;
+-- Only children moved by the parent's deletion are restored along with that parent.
+alter table issues add column if not exists deleted_with_parent int;
+create index if not exists issues_deleted_at on issues (deleted_at) where deleted_at is not null;
+create index if not exists issues_resume_search on issues using gin (
+	to_tsvector('english'::regconfig, stopped || ' ' || next_action)
+);
+-- Retry object cleanup after retention expires, including across process restarts.
+create table if not exists trash_object_cleanup (
+	key text primary key
+);

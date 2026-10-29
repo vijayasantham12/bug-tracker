@@ -45,20 +45,20 @@ const APP_COLORS = [
 const BLOCKED_BY_OPEN = sql`exists (
 	select 1 from issue_relations r join issues b on b.id = r.from_id
 	join statuses bs on bs.id = b.status_id
-	where r.to_id = i.id and r.kind = 'blocks' and not bs.is_closed
+	where r.to_id = i.id and r.kind = 'blocks' and not bs.is_closed and b.deleted_at is null
 )`;
 const BLOCKED_STATUS = sql`lower(s.name) = 'blocked'`;
 
 const issueColumns = sql`
 	i.id, i.app_id, coalesce(a.name, 'Inbox') as app_name,
-	coalesce(a.color, '#64748b') as app_color, i.type, i.title, i.description,
+	coalesce(a.color, '#64748b') as app_color, i.type, i.title, i.description, i.stopped, i.next_action,
 	i.status_id, i.priority, i.labels, i.version, i.fixed_in, i.due_date::text as due_date,
 	i.milestone_id, (select m.name from milestones m where m.id = i.milestone_id) as milestone_name,
 	i.parent_id, i.size, i.severity, i.environment, i.repeat, i.remind_at,
 	i.created_at, i.updated_at, i.closed_at,
-	(select count(*)::int from issues c where c.parent_id = i.id) as subtask_count,
+	(select count(*)::int from issues c where c.parent_id = i.id and c.deleted_at is null) as subtask_count,
 	(select count(*)::int from issues c join statuses cs on cs.id = c.status_id
-		where c.parent_id = i.id and cs.is_closed) as subtask_done,
+		where c.parent_id = i.id and cs.is_closed and c.deleted_at is null) as subtask_done,
 	${BLOCKED_BY_OPEN} as is_blocked,
 	(select count(*)::int from issue_events e where e.issue_id = i.id and e.kind = 'comment') as comment_count,
 	(select count(*)::int from attachments f where f.issue_id = i.id) as attachment_count,
@@ -90,7 +90,7 @@ export function prefixTsQuery(q: string): string | null {
 
 /** One page of matching issues plus the total match count. */
 export async function listIssues(f: Filters): Promise<{ issues: Issue[]; total: number }> {
-	const where = [sql`true`];
+	const where = [sql`i.deleted_at is null`];
 	if (f.inbox) where.push(sql`i.app_id is null`);
 	if (f.apps.length)
 		where.push(sql`lower(a.name) = any(${f.apps.map((a) => a.toLowerCase())}::text[])`);
@@ -132,7 +132,8 @@ export async function listIssues(f: Filters): Promise<{ issues: Issue[]; total: 
 			id
 				? sql`(i.id = ${Number(id)} or i.title ilike ${like})`
 				: query
-					? sql`(i.search @@ ${query} or i.title ilike ${like} or exists (
+					? sql`(i.search @@ ${query} or i.title ilike ${like}
+						or to_tsvector('english'::regconfig, i.stopped || ' ' || i.next_action) @@ ${query} or exists (
 							select 1 from issue_events e where e.issue_id = i.id and e.kind = 'comment'
 								and to_tsvector('english'::regconfig, e.body) @@ ${query}))`
 					: sql`i.title ilike ${like}`
@@ -162,7 +163,7 @@ export async function listIssues(f: Filters): Promise<{ issues: Issue[]; total: 
 
 export async function getIssue(id: number) {
 	const [issue] = await sql<Issue[]>`
-		select ${issueColumns} from issues i left join apps a on a.id = i.app_id where i.id = ${id}
+		select ${issueColumns} from issues i left join apps a on a.id = i.app_id where i.id = ${id} and i.deleted_at is null
 	`;
 	return issue ?? null;
 }
@@ -170,7 +171,7 @@ export async function getIssue(id: number) {
 export async function inboxCount(): Promise<number> {
 	const [{ n }] = await sql<{ n: number }[]>`
 		select count(*)::int as n from issues i join statuses s on s.id = i.status_id
-		where i.app_id is null and not s.is_closed
+		where i.app_id is null and not s.is_closed and i.deleted_at is null
 	`;
 	return n;
 }
@@ -210,7 +211,7 @@ async function ensureMilestone(tx: Tx, rawName: string): Promise<number> {
 async function checkParent(tx: Tx, id: number | null, parentId: number) {
 	if (parentId === id) error(400, "An issue can't be its own parent");
 	const [parent] = await tx<{ parentId: number | null }[]>`
-		select parent_id from issues where id = ${parentId}
+		select parent_id from issues where id = ${parentId} and deleted_at is null for update
 	`;
 	if (!parent) error(400, `Issue #${parentId} not found`);
 	if (parent.parentId) error(400, `#${parentId} is a subtask itself; subtasks can't have subtasks`);
@@ -296,6 +297,8 @@ export async function createIssues(
 const PATCHABLE = [
 	'title',
 	'description',
+	'stopped',
+	'nextAction',
 	'appId',
 	'type',
 	'statusId',
@@ -325,6 +328,8 @@ const ALLOWED: Partial<Record<(typeof PATCHABLE)[number], readonly unknown[]>> =
 const FIELD_NAME: Record<(typeof PATCHABLE)[number], string> = {
 	title: 'title',
 	description: 'description',
+	stopped: 'where I stopped',
+	nextAction: 'next action',
 	appId: 'app',
 	type: 'type',
 	statusId: 'status',
@@ -379,9 +384,9 @@ export async function updateIssue(
 	return sql.begin(async (tx_) => {
 		const tx = tx_ as unknown as Tx;
 		const [cur] = await tx<Raw[]>`
-			select title, description, app_id, type, status_id, priority, labels, version, fixed_in,
+			select title, description, stopped, next_action, app_id, type, status_id, priority, labels, version, fixed_in,
 				due_date::text as due_date, milestone_id, parent_id, size, severity, environment, repeat
-			from issues where id = ${id} for update
+			from issues where id = ${id} and deleted_at is null for update
 		`;
 		if (!cur) return null;
 
@@ -391,7 +396,15 @@ export async function updateIssue(
 		for (const key of PATCHABLE) {
 			if (!(key in patch)) continue;
 			let next = patch[key] as unknown;
-			if (typeof next === 'string' && key !== 'title' && key !== 'description')
+			if (
+				(key === 'stopped' || key === 'nextAction') &&
+				(typeof next !== 'string' || next.length > 20000)
+			)
+				error(400, `${FIELD_NAME[key]} must be text of at most 20,000 characters`);
+			if (
+				typeof next === 'string' &&
+				!['title', 'description', 'stopped', 'nextAction'].includes(key)
+			)
 				next = next.trim() || null;
 			if (key === 'labels')
 				next = [
@@ -487,12 +500,10 @@ async function syncClosedAt(tx: Tx, ids: number[]) {
 	`;
 }
 
-export async function deleteIssues(ids: number[]) {
-	const files = await sql<{ key: string }[]>`
-		delete from attachments where issue_id = any(${ids}::int[]) returning key
-	`;
-	await sql`delete from issues where id = any(${ids}::int[])`;
-	await deleteObjects(files.map((f) => f.key));
+/** Locks the live issue so a concurrent move to Trash cannot lose related records. */
+async function lockIssue(tx: Tx, id: number) {
+	if (!(await tx`select id from issues where id = ${id} and deleted_at is null for update`).length)
+		error(404, 'Issue not found');
 }
 
 // ---------- attachments ----------
@@ -506,7 +517,8 @@ export function listAttachments(issueId: number) {
 
 export async function getAttachment(id: number) {
 	const [row] = await sql<{ key: string; filename: string; mime: string }[]>`
-		select key, filename, mime from attachments where id = ${id}
+		select f.key, f.filename, f.mime from attachments f
+		join issues i on i.id = f.issue_id where f.id = ${id} and i.deleted_at is null
 	`;
 	return row ?? null;
 }
@@ -517,6 +529,7 @@ export async function addAttachments(
 	userId: number
 ) {
 	await sql.begin(async (tx) => {
+		await lockIssue(tx as unknown as Tx, issueId);
 		await tx`insert into attachments ${tx(files.map((f) => ({ issueId, ...f })))}`;
 		await tx`insert into issue_events ${tx(
 			files.map((f) => ({
@@ -532,19 +545,24 @@ export async function addAttachments(
 }
 
 export async function deleteAttachment(issueId: number, id: number, userId: number) {
-	const [row] = await sql<{ key: string; filename: string }[]>`
-		delete from attachments where id = ${id} and issue_id = ${issueId} returning key, filename
-	`;
-	if (!row) return;
-	await sql`
-		insert into issue_events (issue_id, user_id, kind, field, old_value)
-		values (${issueId}, ${userId}, 'change', 'attachment', ${row.filename})
-	`;
-	await deleteObjects([row.key]);
+	const row = await sql.begin(async (tx) => {
+		await lockIssue(tx as unknown as Tx, issueId);
+		const [file] = await tx<{ key: string; filename: string }[]>`
+			delete from attachments where id = ${id} and issue_id = ${issueId} returning key, filename
+		`;
+		if (file)
+			await tx`
+			insert into issue_events (issue_id, user_id, kind, field, old_value)
+			values (${issueId}, ${userId}, 'change', 'attachment', ${file.filename})
+		`;
+		return file;
+	});
+	if (row) await deleteObjects([row.key]);
 }
 
 export async function addComment(issueId: number, body: string, userId: number) {
 	await sql.begin(async (tx) => {
+		await lockIssue(tx as unknown as Tx, issueId);
 		await tx`
 			insert into issue_events (issue_id, user_id, kind, body)
 			values (${issueId}, ${userId}, 'comment', ${body})
@@ -555,17 +573,20 @@ export async function addComment(issueId: number, body: string, userId: number) 
 
 /** Authors can delete their own comments; admins can delete any. */
 export async function deleteComment(issueId: number, eventId: number, user: User) {
-	await sql`
-		delete from issue_events
-		where id = ${eventId} and issue_id = ${issueId} and kind = 'comment'
-			and (${user.role === 'admin'} or user_id = ${user.id})
-	`;
+	await sql.begin(async (tx) => {
+		await lockIssue(tx as unknown as Tx, issueId);
+		await tx`
+			delete from issue_events
+			where id = ${eventId} and issue_id = ${issueId} and kind = 'comment'
+				and (${user.role === 'admin'} or user_id = ${user.id})
+		`;
+	});
 }
 
 export async function listLabels(): Promise<string[]> {
 	const rows = await sql<
 		{ label: string }[]
-	>`select distinct unnest(labels) as label from issues order by 1`;
+	>`select distinct unnest(labels) as label from issues where deleted_at is null order by 1`;
 	return rows.map((r) => r.label);
 }
 
@@ -574,7 +595,7 @@ export async function listLabels(): Promise<string[]> {
 /** Sets (or clears, with null) the issue's "remind me"; it goes to `userId`. */
 export async function setReminder(id: number, at: Date | null, userId: number) {
 	await sql`
-		update issues set remind_at = ${at}, remind_user_id = ${at ? userId : null} where id = ${id}
+		update issues set remind_at = ${at}, remind_user_id = ${at ? userId : null} where id = ${id} and deleted_at is null
 	`;
 }
 
@@ -582,7 +603,7 @@ export async function setReminder(id: number, at: Date | null, userId: number) {
 export function takeDueReminders() {
 	return sql<{ id: number; title: string; userId: number }[]>`
 		update issues i set remind_at = null, remind_user_id = null
-		from (select id, remind_user_id from issues where remind_at <= now() for update skip locked) due
+		from (select id, remind_user_id from issues where remind_at <= now() and deleted_at is null for update skip locked) due
 		where i.id = due.id
 		returning i.id, i.title, due.remind_user_id as user_id
 	`;
@@ -593,7 +614,7 @@ export function takeDueReminders() {
 export async function getIssueRef(id: number) {
 	const [row] = await sql<IssueRef[]>`
 		select i.id, i.title, i.status_id, s.is_closed
-		from issues i join statuses s on s.id = i.status_id where i.id = ${id}
+		from issues i join statuses s on s.id = i.status_id where i.id = ${id} and i.deleted_at is null
 	`;
 	return row ?? null;
 }
@@ -602,7 +623,7 @@ export function listSubtasks(parentId: number) {
 	return sql<IssueRef[]>`
 		select i.id, i.title, i.status_id, s.is_closed
 		from issues i join statuses s on s.id = i.status_id
-		where i.parent_id = ${parentId}
+		where i.parent_id = ${parentId} and i.deleted_at is null
 		order by s.is_closed, s.position, i.id
 	`;
 }
@@ -639,6 +660,7 @@ export function cleanUrl(input: string): string | null {
 export async function addLink(issueId: number, url: string, title: string | null, userId: number) {
 	await sql.begin(async (tx_) => {
 		const tx = tx_ as unknown as Tx;
+		await lockIssue(tx, issueId);
 		await tx`insert into issue_links (issue_id, url, title) values (${issueId}, ${url}, ${title})`;
 		await logChange(tx, issueId, userId, 'link', { newValue: title || url });
 	});
@@ -647,6 +669,7 @@ export async function addLink(issueId: number, url: string, title: string | null
 export async function deleteLink(issueId: number, linkId: number, userId: number) {
 	await sql.begin(async (tx_) => {
 		const tx = tx_ as unknown as Tx;
+		await lockIssue(tx, issueId);
 		const [row] = await tx<{ url: string; title: string | null }[]>`
 			delete from issue_links where id = ${linkId} and issue_id = ${issueId} returning url, title
 		`;
@@ -673,7 +696,7 @@ export function listRelations(id: number) {
 		from issue_relations r
 		join issues o on o.id = case when r.from_id = ${id} then r.to_id else r.from_id end
 		join statuses s on s.id = o.status_id
-		where r.from_id = ${id} or r.to_id = ${id}
+		where (r.from_id = ${id} or r.to_id = ${id}) and o.deleted_at is null
 		order by r.kind, o.id
 	`;
 }
@@ -684,8 +707,9 @@ export async function addRelation(id: number, kind: RelationKind, otherId: numbe
 	if (id === otherId) error(400, "An issue can't be related to itself");
 	await sql.begin(async (tx_) => {
 		const tx = tx_ as unknown as Tx;
-		if (!(await tx`select 1 from issues where id = ${otherId}`).length)
-			error(400, `Issue #${otherId} not found`);
+		const live = await tx`select id from issues where id = any(${[id, otherId]}::int[])
+			and deleted_at is null order by id for update`;
+		if (live.length !== 2) error(404, 'Issue not found');
 		const [from, to, stored] =
 			kind === 'blocked_by' || kind === 'duplicated_by'
 				? [otherId, id, kind === 'blocked_by' ? 'blocks' : 'duplicates']
@@ -716,6 +740,9 @@ export async function deleteRelation(id: number, relationId: number, userId: num
 	if (!rel) return;
 	await sql.begin(async (tx_) => {
 		const tx = tx_ as unknown as Tx;
+		const live = await tx`select id from issues where id = any(${[id, rel.otherId]}::int[])
+			and deleted_at is null order by id for update`;
+		if (live.length !== 2) error(404, 'Issue not found');
 		await tx`delete from issue_relations where id = ${relationId}`;
 		await logChange(tx, id, userId, 'relation', {
 			oldValue: `${relationLabel(rel.kind)} #${rel.otherId}`
@@ -730,11 +757,11 @@ export async function deleteRelation(id: number, relationId: number, userId: num
 
 export function listMilestones() {
 	return sql<Milestone[]>`
-		select m.id, m.name, m.due_date::text as due_date, m.done,
+		select m.id, m.name, m.due_date::text as due_date, m.done, m.hill_revision,
 			(count(i.id) filter (where not s.is_closed))::int as open_count,
 			count(i.id)::int as total_count
 		from milestones m
-		left join issues i on i.milestone_id = m.id
+		left join issues i on i.milestone_id = m.id and i.deleted_at is null
 		left join statuses s on s.id = i.status_id
 		group by m.id
 		order by m.done, m.due_date nulls last, lower(m.name)
@@ -769,7 +796,7 @@ export function listApps() {
 			(count(i.id) filter (where not s.is_closed))::int as open_count,
 			count(i.id)::int as total_count
 		from apps a
-		left join issues i on i.app_id = a.id
+		left join issues i on i.app_id = a.id and i.deleted_at is null
 		left join statuses s on s.id = i.status_id
 		group by a.id
 		order by a.archived, lower(a.name)
@@ -876,7 +903,7 @@ export async function listTodayIssues(userId: number): Promise<Issue[]> {
 		select ${issueColumns} from today_issues t
 		join issues i on i.id = t.issue_id left join apps a on a.id = i.app_id
 		join statuses s on s.id = i.status_id
-		where t.user_id = ${userId} and not s.is_closed
+		where t.user_id = ${userId} and not s.is_closed and i.deleted_at is null
 		order by t.position, t.issue_id
 	`;
 }
@@ -886,7 +913,7 @@ export async function listTodayIssues(userId: number): Promise<Issue[]> {
  * "Up next" / "quick wins" = still in the default status and not blocked by an open issue.
  */
 export async function dashboard() {
-	const from = sql`from issues i left join apps a on a.id = i.app_id join statuses s on s.id = i.status_id`;
+	const from = sql`from issues i left join apps a on a.id = i.app_id join statuses s on s.id = i.status_id and i.deleted_at is null`;
 	const notStarted = sql`not s.is_closed and s.is_default and not ${BLOCKED_BY_OPEN}`;
 
 	const upNext = await sql<Issue[]>`
@@ -940,9 +967,9 @@ export async function dashboard() {
 		sql<{ week: string; created: number; closed: number }[]>`
 				select w.week::date::text as week,
 					(select count(*)::int from issues i
-						where i.created_at >= w.week and i.created_at < w.week + interval '1 week') as created,
+						where i.deleted_at is null and i.created_at >= w.week and i.created_at < w.week + interval '1 week') as created,
 					(select count(*)::int from issues i
-						where i.closed_at >= w.week and i.closed_at < w.week + interval '1 week') as closed
+						where i.deleted_at is null and i.closed_at >= w.week and i.closed_at < w.week + interval '1 week') as closed
 				from generate_series(date_trunc('week', now()) - interval '7 weeks', date_trunc('week', now()),
 					interval '1 week') as w (week)
 				order by w.week
@@ -967,7 +994,7 @@ export async function dashboard() {
 					(count(i.id) filter (where not s.is_closed and i.type not in ('bug', 'feature')))::int
 						as open_other
 				from milestones m
-				left join issues i on i.milestone_id = m.id
+				left join issues i on i.milestone_id = m.id and i.deleted_at is null
 				left join statuses s on s.id = i.status_id
 				where not m.done
 				group by m.id
@@ -979,7 +1006,7 @@ export async function dashboard() {
 					(count(i.id) filter (where not s.is_closed and i.type = 'bug'))::int as bugs,
 					(count(i.id) filter (where not s.is_closed and i.priority <= 1))::int as urgent
 				from apps a
-				left join issues i on i.app_id = a.id
+				left join issues i on i.app_id = a.id and i.deleted_at is null
 				left join statuses s on s.id = i.status_id
 				where not a.archived
 				group by a.id
@@ -1011,7 +1038,7 @@ export async function similarIssues(title: string): Promise<SimilarIssue[]> {
 	const rows = await sql<SimilarIssue[]>`
 		select i.id, i.title, s.name as status_name
 		from issues i join statuses s on s.id = i.status_id
-		where not s.is_closed and i.title ilike any(${patterns}::text[])
+		where i.deleted_at is null and not s.is_closed and i.title ilike any(${patterns}::text[])
 		order by i.updated_at desc
 		limit 300
 	`;
@@ -1031,7 +1058,7 @@ export async function similarIssues(title: string): Promise<SimilarIssue[]> {
 export async function lastUsedApp(userId: number): Promise<string | null> {
 	const [row] = await sql<{ name: string }[]>`
 		(select a.name from issues i join apps a on a.id = i.app_id
-			where i.created_by = ${userId} and not a.archived order by i.created_at desc, i.id desc limit 1)
+			where i.created_by = ${userId} and i.deleted_at is null and not a.archived order by i.created_at desc, i.id desc limit 1)
 		union all
 		(select name from apps where not archived order by lower(name) limit 1)
 		limit 1

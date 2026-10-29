@@ -60,6 +60,12 @@ export async function deleteObjects(keys: string[]) {
 	await Promise.allSettled(keys.map((k) => client.fetch(objectUrl(k), { method: 'DELETE' })));
 }
 
+/** Checked deletion for the retryable Trash cleanup queue. */
+export async function deleteObject(key: string) {
+	const res = await s3().fetch(objectUrl(key), { method: 'DELETE' });
+	if (!res.ok && res.status !== 404) throw new Error(`S3 delete failed (${res.status})`);
+}
+
 export const SIGNED_URL_SECONDS = 300;
 
 /** Short-lived GET URL; `inline` lets the browser display images/PDFs instead of downloading. */

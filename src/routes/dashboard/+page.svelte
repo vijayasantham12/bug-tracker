@@ -175,7 +175,8 @@
 		{@const late = !!next.dueDate && dueText(next.dueDate).endsWith('late') && left > 0}
 		<div class="mb-2 flex flex-wrap items-baseline gap-x-2">
 			<h2 class="text-xs font-medium tracking-wide text-zinc-500 uppercase">Next milestone</h2>
-			<a href="/?ms={next.id}&status=all" class="font-semibold hover:underline">{next.name}</a>
+			<a href="/milestones/{next.id}" class="font-semibold hover:underline">{next.name}</a>
+			<a href="/milestones/{next.id}" class="text-xs text-zinc-500 hover:underline">Hill Chart →</a>
 			{#if next.dueDate}<span class="text-xs {late ? 'text-red-500' : 'text-zinc-500'}"
 					>{dueText(next.dueDate)}</span
 				>{/if}
@@ -206,7 +207,7 @@
 			<div class="mt-2 flex flex-wrap gap-x-4 text-xs text-zinc-500">
 				<span class="text-zinc-400">later:</span>
 				{#each later as m (m.id)}
-					<a href="/?ms={m.id}&status=all" class="hover:underline"
+					<a href="/milestones/{m.id}" class="hover:underline"
 						>{m.name} <span class="tabular-nums">{m.done}/{m.total}</span></a
 					>
 				{/each}

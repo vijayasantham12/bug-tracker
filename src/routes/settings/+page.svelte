@@ -268,7 +268,7 @@
 	</section>
 
 	<section class="overflow-x-auto">
-		<h2 class="mb-1 font-semibold">Milestones</h2>
+		<h2 id="milestones" class="mb-1 font-semibold">Milestones</h2>
 		<p class="mb-3 text-xs text-zinc-500">
 			Target releases. Also created from <code>^name</code> in quick add. Marking one done hides it from
 			pickers; deleting one keeps its issues, just without a milestone.
@@ -317,6 +317,9 @@
 							/></td
 						>
 						<td class="text-right">
+							<a href="/milestones/{m.id}" class="mr-3 text-xs text-zinc-500 hover:underline"
+								>Hill Chart →</a
+							>
 							<button
 								class="text-xs text-zinc-400 hover:text-red-500"
 								onclick={() =>

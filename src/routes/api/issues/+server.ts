@@ -1,6 +1,8 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { createIssues, deleteIssues, updateIssue } from '#lib/server/repo.ts';
+import { createIssues, updateIssue } from '#lib/server/repo.ts';
+import { trashIssues } from '#lib/server/trash.ts';
+import { readIssueIds } from '#lib/server/issue-input.ts';
 import { requireUser } from '#lib/server/session.ts';
 import { cleanNewIssues } from '#lib/server/validate.ts';
 import { afterIssueChanged, afterIssuesCreated } from '#lib/server/notify.ts';
@@ -29,8 +31,8 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
 };
 
 /** Bulk delete: { ids: number[] } */
-export const DELETE: RequestHandler = async ({ request }) => {
-	const { ids } = (await request.json()) as { ids: number[] };
-	await deleteIssues(ids);
+export const DELETE: RequestHandler = async ({ request, locals }) => {
+	const user = requireUser(locals);
+	await trashIssues(await readIssueIds(request), user.id);
 	return json({ ok: true });
 };

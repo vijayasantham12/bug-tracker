@@ -95,7 +95,12 @@
 		api('PATCH', '/api/issues', { ids: [...selected], patch });
 
 	async function deleteSelected() {
-		if (!confirm(`Delete ${selected.size} issue(s)? This cannot be undone.`)) return;
+		if (
+			!confirm(
+				`Move ${selected.size} issue(s) and their active subtasks to Trash? You can restore them for 30 days.`
+			)
+		)
+			return;
 		await api('DELETE', '/api/issues', { ids: [...selected] });
 		selected.clear();
 	}
@@ -511,6 +516,11 @@
 	{#if filters.sizes.length}
 		{@render activeChip(`Size ${filters.sizes.join(', ').toUpperCase()}`, { sizes: [] })}
 	{/if}
+	{#if filters.milestone && filters.milestone !== 'none'}
+		<a href="/milestones/{filters.milestone}" class="text-xs text-zinc-500 hover:underline"
+			>Milestone Hill Chart →</a
+		>
+	{/if}
 	{#if filters.dueWeek}{@render activeChip('Due this week', { dueWeek: false })}{/if}
 	{#if filters.blocked}{@render activeChip('Blocked', { blocked: false })}{/if}
 	{#if filters.parent}
@@ -630,7 +640,7 @@
 			<option value="none">No size</option>
 			{#each SIZES as sz (sz)}<option value={sz}>{sz.toUpperCase()}</option>{/each}
 		</select>
-		<button class="btn-danger py-0.5" onclick={deleteSelected}>Delete</button>
+		<button class="btn-danger py-0.5" onclick={deleteSelected}>Move to Trash</button>
 		<button class="ml-auto text-zinc-500 hover:underline" onclick={() => selected.clear()}
 			>Clear selection</button
 		>
