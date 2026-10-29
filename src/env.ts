@@ -27,6 +27,19 @@ export const variables = defineEnvVars({
 		description:
 			'Contact for Web Push services (mailto: or https: URL). The VAPID keys themselves are generated and stored in the database on first use.'
 	},
+	PG_DUMP: {
+		schema: (v) => v || 'pg_dump',
+		description:
+			"pg_dump command for nightly backups, e.g. 'podman exec postgres-18 pg_dump' when Postgres runs in a container"
+	},
+	BACKUP_KEEP_DAYS: {
+		schema: (v) => {
+			const n = Number(v ?? 30);
+			if (!Number.isInteger(n) || n < 0) throw new Error('BACKUP_KEEP_DAYS must be 0 or more');
+			return n;
+		},
+		description: 'Nightly database backups to S3 are kept this many days; 0 turns backups off'
+	},
 	ATTACHMENT_MAX_MB: {
 		schema: (v) => {
 			const n = Number(v || 25);

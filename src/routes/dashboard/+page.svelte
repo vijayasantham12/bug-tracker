@@ -1,5 +1,7 @@
 <script lang="ts">
 	import TrendChart from '#lib/components/TrendChart.svelte';
+	import TodayList from '#lib/components/TodayList.svelte';
+	import TodayToggle from '#lib/components/TodayToggle.svelte';
 	import { ago, PRIORITY_CLASS, TYPE_CLASS } from '#lib/format.ts';
 	import { PRIORITIES, TYPE_LABEL, type Issue } from '#lib/types.ts';
 	import type { PageProps } from './$types';
@@ -62,6 +64,7 @@
 	<li class="flex items-baseline gap-2 py-1">
 		<span class="w-10 shrink-0 font-mono text-xs text-zinc-400">#{i.id}</span>
 		<a href="/issues/{i.id}" class="min-w-0 truncate hover:underline">{i.title}</a>
+		<TodayToggle issueId={i.id} selected={data.todayIds.includes(i.id)} compact />
 		{#if i.isBlocked}<span class="shrink-0 text-xs text-red-500">⛔</span>{/if}
 		<span class="ml-auto flex shrink-0 items-baseline gap-2 text-xs">
 			<span class="flex items-center gap-1 text-zinc-500"
@@ -81,6 +84,8 @@
 		</span>
 	</li>
 {/snippet}
+
+<TodayList issues={data.today} statuses={data.statuses} />
 
 <div class="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
 	<!-- Now -->
@@ -150,6 +155,7 @@
 						<li class="flex items-baseline gap-2 py-1">
 							<span class="font-mono text-xs text-zinc-400">#{i.id}</span>
 							<a href="/issues/{i.id}" class="min-w-0 truncate hover:underline">{i.title}</a>
+							<TodayToggle issueId={i.id} selected={data.todayIds.includes(i.id)} compact />
 							<span class="ml-auto shrink-0 text-xs text-zinc-400 uppercase">{i.size}</span>
 						</li>
 					{/each}

@@ -33,6 +33,16 @@ export const ENVIRONMENTS = [
 ] as const;
 export type Environment = (typeof ENVIRONMENTS)[number]['value'];
 
+/** Closing a repeating issue creates the next one, due one interval later. */
+export const REPEATS = [
+	{ value: 'daily', label: 'Daily', interval: '1 day' },
+	{ value: 'weekly', label: 'Weekly', interval: '1 week' },
+	{ value: 'monthly', label: 'Monthly', interval: '1 month' },
+	{ value: 'quarterly', label: 'Quarterly', interval: '3 months' },
+	{ value: 'yearly', label: 'Yearly', interval: '1 year' }
+] as const;
+export type Repeat = (typeof REPEATS)[number]['value'];
+
 /** What the issue page offers; stored as (from, to, kind) in issue_relations. */
 export const RELATION_KINDS = [
 	{ value: 'relates', label: 'related to' },
@@ -90,6 +100,7 @@ export interface Issue {
 	size: Size | null;
 	severity: Severity | null;
 	environment: Environment | null;
+	repeat: Repeat | null;
 	createdAt: Date;
 	updatedAt: Date;
 	closedAt: Date | null;
@@ -183,9 +194,18 @@ export type IssuePatch = Partial<{
 	size: Size | null;
 	severity: Severity | null;
 	environment: Environment | null;
+	repeat: Repeat | null;
 	/** ISO time for "remind me", or null to cancel; handled outside updateIssue */
 	remindAt: string | null;
 }>;
+
+/** A named list URL. */
+export interface SavedView {
+	id: number;
+	name: string;
+	/** query string including the leading "?", or "" for the default list */
+	query: string;
+}
 
 export type Role = 'admin' | 'member';
 

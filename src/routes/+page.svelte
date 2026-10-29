@@ -4,6 +4,7 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import QuickAdd from '#lib/components/QuickAdd.svelte';
+	import TodayToggle from '#lib/components/TodayToggle.svelte';
 	import { api } from '#lib/api.ts';
 	import { notify } from '#lib/toast.svelte.ts';
 	import { nav } from '#lib/nav.svelte.ts';
@@ -107,6 +108,17 @@
 	const isFiltered = $derived(
 		filtersToQuery({ ...filters, sort: 'id', dir: 'desc', page: 1 }) !== ''
 	);
+	// saved views: the current filters + sort, without the page
+	const viewQuery = $derived(filtersToQuery({ ...filters, page: 1 }));
+	const activeView = $derived(data.views.find((v) => v.query === viewQuery));
+	async function saveCurrentView() {
+		const name = prompt('Name this view', activeView?.name ?? '')?.trim();
+		if (name) await api('POST', '/api/views', { name, query: viewQuery });
+	}
+	async function deleteView(id: number, name: string) {
+		if (confirm(`Delete the view "${name}"?`)) await api('DELETE', `/api/views/${id}`);
+	}
+
 	const pages = $derived(Math.max(1, Math.ceil(data.total / PAGE_SIZE)));
 	const first = $derived((filters.page - 1) * PAGE_SIZE + 1);
 	const count = $derived(
@@ -247,12 +259,45 @@
 	});
 </script>
 
+<div class="mb-2 flex justify-end">
+	<a href="/dashboard#today" class="text-xs text-amber-700 hover:underline dark:text-amber-400">
+		★ Today · {data.todayIds.length} →
+	</a>
+</div>
+
 <QuickAdd
 	apps={data.apps}
 	milestones={data.milestones}
 	attachmentsEnabled={data.attachmentsEnabled}
 	{onadded}
 />
+
+<!-- saved views -->
+{#if data.views.length || isFiltered}
+	<div class="mt-4 flex flex-wrap items-center gap-1.5 text-sm">
+		<span class="text-zinc-400">Views</span>
+		{#each data.views as v (v.id)}
+			{@const on = v.id === activeView?.id}
+			<span
+				class="chip {on
+					? 'border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900'
+					: 'hover:bg-zinc-100 dark:hover:bg-zinc-900'}"
+			>
+				<a href="/{v.query}">★ {v.name}</a>
+				{#if on}
+					<button
+						class="opacity-60 hover:opacity-100"
+						title="Delete this view"
+						onclick={() => deleteView(v.id, v.name)}>✕</button
+					>
+				{/if}
+			</span>
+		{/each}
+		{#if isFiltered && !activeView}
+			<button class="text-zinc-500 hover:underline" onclick={saveCurrentView}>+ Save view</button>
+		{/if}
+	</div>
+{/if}
 
 <!-- apps -->
 <div class="mt-4 flex flex-wrap items-center gap-1.5">
@@ -585,6 +630,9 @@
 						<a href="/issues/{issue.id}" class="hover:underline">#{issue.id}</a>
 					</td>
 					<td class="px-2 py-1.5">
+						{#if !status?.isClosed}
+							<TodayToggle issueId={issue.id} selected={data.todayIds.includes(issue.id)} compact />
+						{/if}
 						{#if issue.parentId}
 							<a
 								href="/issues/{issue.parentId}"
@@ -605,6 +653,9 @@
 								class="ml-1 text-xs text-zinc-400"
 								title="Reminder {issue.remindAt.toLocaleString()}">🔔</span
 							>
+						{/if}
+						{#if issue.repeat}
+							<span class="ml-1 text-xs text-zinc-400" title="Repeats {issue.repeat}">↻</span>
 						{/if}
 						{#if issue.isBlocked && !status?.isClosed}
 							<span class="ml-1 text-xs text-red-500" title="Blocked by an open issue"

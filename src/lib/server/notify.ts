@@ -3,6 +3,7 @@ import { notifyUsers, type PushPayload } from './push';
 import { takeDueReminders, type IssueChange } from './repo';
 import { NOTIFY_DEFAULTS, type NotifyPrefs } from '#lib/types.ts';
 import { pruneNotifications } from './notifications';
+import { backupIfDue } from './backup';
 
 /**
  * What triggers a push notification. Callers fire these after the write succeeded and don't
@@ -127,7 +128,7 @@ export function afterComment(issueId: number, body: string, actor: { id: number;
 	})().catch(log('comment'));
 }
 
-// ---------- scheduler: reminders and the daily digest, checked every minute ----------
+// ---------- scheduler: reminders, the daily digest and the nightly backup, checked every minute ----------
 
 let timer: ReturnType<typeof setInterval> | undefined;
 let lastCleanup = 0;
@@ -145,6 +146,7 @@ export function startScheduler() {
 		sendReminders()
 			.then(() => sendDigests())
 			.catch(log('scheduler'));
+		backupIfDue().catch(log('backup'));
 	};
 	timer = setInterval(tick, 60_000);
 	timer.unref();

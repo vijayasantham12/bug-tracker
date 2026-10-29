@@ -49,6 +49,8 @@ export interface Filters {
 	dir: 'asc' | 'desc';
 	/** 1-based */
 	page: number;
+	/** page size; not part of the URL (the MCP tools use it) */
+	limit?: number;
 }
 
 // junk, negative or absurd values fall back to page 1

@@ -210,3 +210,41 @@ create index if not exists notifications_user_id on notifications (user_id, id d
 create index if not exists notifications_unread on notifications (user_id, created_at)
 	where read_at is null;
 create index if not exists notifications_created on notifications (created_at);
+
+-- Personal focus queue. Unfinished work carries over until completed or removed.
+create table if not exists today_issues (
+	user_id int not null references users (id) on delete cascade,
+	issue_id int not null references issues (id) on delete cascade,
+	position int not null,
+	primary key (user_id, issue_id)
+);
+create index if not exists today_issues_issue on today_issues (issue_id);
+
+-- ---------- full-text search ----------
+
+-- title weighs more than description; 'english' so "crashes" finds "crash"
+alter table issues add column if not exists search tsvector generated always as (
+	setweight(to_tsvector('english'::regconfig, title), 'A') ||
+	setweight(to_tsvector('english'::regconfig, description), 'B')
+) stored;
+create index if not exists issues_search on issues using gin (search);
+create index if not exists issue_events_comment_search on issue_events
+	using gin (to_tsvector('english'::regconfig, body)) where kind = 'comment';
+
+-- ---------- saved views: named list URLs, per user ----------
+
+create table if not exists saved_views (
+	id serial primary key,
+	user_id int not null references users (id) on delete cascade,
+	name text not null,
+	-- the list's query string, e.g. "?app=shop&env=production"
+	query text not null,
+	created_at timestamptz not null default now()
+);
+create unique index if not exists saved_views_user_name on saved_views (user_id, lower(name));
+
+-- ---------- recurring issues ----------
+
+-- closing a repeating issue creates the next one (see spawnRepeats in repo.ts)
+alter table issues add column if not exists repeat text
+	check (repeat in ('daily', 'weekly', 'monthly', 'quarterly', 'yearly'));

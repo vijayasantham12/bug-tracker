@@ -28,6 +28,8 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --frozen-lockfile
 
 # ---------- runtime ----------
 FROM node:${NODE_VERSION}-alpine AS runtime
+# pg_dump for the nightly backup; its major version must match the server's
+RUN apk add --no-cache postgresql18-client
 WORKDIR /app
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \

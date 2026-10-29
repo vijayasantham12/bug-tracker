@@ -19,6 +19,7 @@
 		ENVIRONMENTS,
 		PRIORITIES,
 		RELATION_KINDS,
+		REPEATS,
 		SEVERITIES,
 		SIZES,
 		TYPES,
@@ -29,6 +30,7 @@
 	} from '#lib/types.ts';
 	import Markdown from '#lib/components/Markdown.svelte';
 	import MediaViewer from '#lib/components/MediaViewer.svelte';
+	import TodayToggle from '#lib/components/TodayToggle.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -355,6 +357,11 @@
 <div class="mb-3 flex items-center gap-3 text-zinc-500">
 	<a href={nav.listUrl} class="hover:underline">← Issues</a>
 	<span class="text-xs text-zinc-400"><span class="kbd">Esc</span> back</span>
+	{#if !status?.isClosed}
+		<div class="ml-auto">
+			<TodayToggle issueId={issue.id} selected={data.todayIds.includes(issue.id)} />
+		</div>
+	{/if}
 </div>
 
 <div class="grid gap-6 md:grid-cols-[1fr_16rem]">
@@ -878,6 +885,16 @@
 				onblur={(e) => !e.currentTarget.value && (e.currentTarget.type = 'text')}
 				onchange={(e) => save({ dueDate: e.currentTarget.value || null })}
 			/>
+			{@render label('Repeat')}
+			<select
+				class="prop {faint(!issue.repeat)}"
+				value={issue.repeat ?? ''}
+				title="Closing it creates the next one, due one interval later"
+				onchange={(e) => save({ repeat: (e.currentTarget.value || null) as never })}
+			>
+				<option value="">—</option>
+				{#each REPEATS as r (r.value)}<option value={r.value}>↻ {r.label}</option>{/each}
+			</select>
 			{@render label('Remind me')}
 			{#if issue.remindAt && !pickingReminder}
 				<span class="flex min-w-0 items-center gap-1 px-1.5 py-1">

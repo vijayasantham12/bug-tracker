@@ -158,6 +158,40 @@ an image is attached, a shared URL becomes a link, other text goes in the descri
 it uses the app of your last issue. Settings has step-by-step instructions for an iOS Shortcut that puts
 **Add bug** in the Share sheet (iOS doesn't support web-app share targets). Tokens only work for `/api/*`.
 
+## Claude Code (MCP)
+
+`/api/mcp` is an MCP server (streamable HTTP, stateless, authenticated with an API token). Add it once, for
+every project:
+
+```sh
+claude mcp add --scope user --transport http bugs https://bugs.example.com/api/mcp \
+  --header "Authorization: Bearer bt_…"
+```
+
+Settings → API tokens shows the command with your URL. Tools: `list_issues` (full-text search and filters),
+`get_issue`, `create_issue` (quick-add syntax in the title works), `update_issue`, `add_comment`,
+`close_issue` (with an optional closing comment and fixed-in version). `get_issue` returns everything on the
+issue: fields, description, comments, history, links, relations, subtasks and attachments. Screenshots
+(PNG/JPEG/GIF/WebP up to 3.5 MB, at most 10) come back as images and logs/JSON/code as text (the last
+100k characters), so "find the root cause of #123" works without copy-pasting. Other files (video, PDF, HEIC)
+get a 5-minute download link. Everything is done as the token's user and shows up in the history.
+
+## Backups
+
+Every night (first scheduler tick after 00:00 UTC) the server runs `pg_dump --format=custom` and stores the
+dump in the attachments bucket as `<S3_PREFIX>backups/YYYY-MM-DD.dump`, deleting dumps older than
+`BACKUP_KEEP_DAYS` (default 30; `0` turns backups off). Needs S3. Settings → **Backups** (admins) shows
+the last backup and any error, and has **Back up now**. A failed nightly run is retried the next night.
+
+`pg_dump`'s major version must match the server's. The Docker image includes the Postgres 18 client.
+Running `pnpm start` with Postgres in podman, set `PG_DUMP=podman exec postgres-18 pg_dump`.
+
+Restore into an empty (or existing, with `--clean`) database:
+
+```sh
+pg_restore --clean --if-exists --no-owner -d "$DATABASE_URL" 2026-10-29.dump
+```
+
 ## Notification inbox
 
 The header bell shows your unread count. Open it to browse notifications from the last 30 days,
@@ -174,15 +208,30 @@ is installed; earlier push notifications cannot be recovered.
 
 ## Views
 
+- **Today** (top of Dashboard) — your personal, manually ordered focus list. Click ☆ beside an open
+  issue in the list or dashboard suggestions, or **Add to Today** on its detail page. Pick 1–3 issues
+  (there is no hard limit), drag the handle or use ↑ / ↓ to reorder, and click ✓ to mark an issue Done
+  (or the first closed status if there is no Done status). ✕ removes it from Today without changing
+  the issue. Unfinished work carries over; closing an issue removes it from everyone's Today list,
+  and reopening it does not add it back. Your choices and order sync across devices and do not change
+  priorities or due dates.
+
 - **Issues** (`/`) — table with inline status/priority/type editing, multi-select bulk actions, sortable columns.
   Filters live in the URL so they're bookmarkable: app chips (Shift+click for several), Open/Closed/All or a
   specific status, type, priority, label, overdue, search (`#12` jumps to an id). `/` focuses search.
+  Search is full text over titles, descriptions and comments (English stemming, so "crashing" finds
+  "crashes"; the last word matches as a prefix while you type), best match first unless you sorted.
+  **Views**: with filters set, **+ Save view** names the current filters and sort; saved views show as ★
+  chips above the apps (per user). Saving under an existing name replaces it; ✕ on the active one deletes it.
   Also filter by milestone, severity and environment; the ☑ 2/5 subtask badge lists an issue's subtasks.
   Milestone and size are editable inline.
   100 issues per page (`?page=2`); changing a filter or sort goes back to page 1.
 - **Issue** (`/issues/:id`) — description, labels, found-in / fixed-in version, due date, comments, and a
   history of every field change. `Esc` goes back to the list.
   Planning: milestone, size, parent issue (subtasks are one level deep; add them from the parent's page).
+  **Repeat** (daily, weekly, monthly, quarterly, yearly): closing the issue creates a fresh copy, due one
+  interval after the old due date (or today); missed intervals are skipped, so chores never pile up. The
+  closed one links to the next in its history; ↻ marks repeating issues in the list.
   Bugs also get severity and environment. Links (PRs, commits, Sentry, docs) and related issues
   (related to / blocks / blocked by / duplicates / duplicated by, shown on both sides; open blockers mark
   an issue ⛔ blocked in the list).

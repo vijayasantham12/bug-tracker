@@ -73,3 +73,23 @@ export async function signedUrl(key: string, filename: string, inline: boolean) 
 	const signed = await s3().sign(url.toString(), { method: 'GET', aws: { signQuery: true } });
 	return signed.url;
 }
+
+/** Object body, or null if it doesn't exist. */
+export async function getObject(key: string): Promise<Uint8Array | null> {
+	const res = await s3().fetch(objectUrl(key));
+	if (res.status === 404) return null;
+	if (!res.ok) throw new Error(`S3 download failed (${res.status})`);
+	return new Uint8Array(await res.arrayBuffer());
+}
+
+/** Keys under a prefix (first 1000, plenty for daily backups). */
+export async function listKeys(prefix: string): Promise<string[]> {
+	const url = new URL(objectUrl(''));
+	url.searchParams.set('list-type', '2');
+	url.searchParams.set('prefix', prefix);
+	const res = await s3().fetch(url);
+	if (!res.ok) throw new Error(`S3 list failed (${res.status})`);
+	return [...(await res.text()).matchAll(/<Key>([^<]*)<\/Key>/g)].map((m) =>
+		m[1].replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+	);
+}

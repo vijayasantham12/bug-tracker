@@ -9,6 +9,7 @@ import {
 	RELATION_KINDS,
 	SEVERITIES,
 	SIZES,
+	REPEATS,
 	TYPES,
 	type App,
 	type Attachment,
@@ -52,7 +53,7 @@ const issueColumns = sql`
 	i.id, i.app_id, a.name as app_name, a.color as app_color, i.type, i.title, i.description,
 	i.status_id, i.priority, i.labels, i.version, i.fixed_in, i.due_date::text as due_date,
 	i.milestone_id, (select m.name from milestones m where m.id = i.milestone_id) as milestone_name,
-	i.parent_id, i.size, i.severity, i.environment, i.remind_at,
+	i.parent_id, i.size, i.severity, i.environment, i.repeat, i.remind_at,
 	i.created_at, i.updated_at, i.closed_at,
 	(select count(*)::int from issues c where c.parent_id = i.id) as subtask_count,
 	(select count(*)::int from issues c join statuses cs on cs.id = c.status_id
@@ -77,6 +78,12 @@ const SORT_SQL = {
 };
 
 export const MILESTONE_NAME_MAX = 40;
+
+/** "safari crash" → "safari:* & crash:*", so a half-typed word still matches; null without words. */
+export function prefixTsQuery(q: string): string | null {
+	const words = q.toLowerCase().match(/[\p{L}\p{N}_]+/gu);
+	return words ? words.map((w) => `${w}:*`).join(' & ') : null;
+}
 
 // ---------- issues ----------
 
@@ -103,17 +110,30 @@ export async function listIssues(f: Filters): Promise<{ issues: Issue[]; total: 
 	if (f.overdue) where.push(sql`i.due_date < current_date`);
 	if (f.dueWeek) where.push(sql`i.due_date between current_date and current_date + 7`);
 	if (f.blocked) where.push(sql`(${BLOCKED_STATUS} or ${BLOCKED_BY_OPEN})`);
+	// full text over title, description and comments; the title ilike keeps substrings like
+	// "checkout.ts" or "500" findable, which the english parser splits or drops
+	const id = /^#?(\d+)$/.exec(f.q.trim())?.[1];
+	const tsq = f.q && !id ? prefixTsQuery(f.q) : null;
+	const query = tsq ? sql`to_tsquery('english', ${tsq})` : null;
 	if (f.q) {
 		const like = `%${f.q.replace(/[\\%_]/g, '\\$&')}%`;
-		const id = /^#?(\d+)$/.exec(f.q.trim())?.[1];
 		where.push(
 			id
 				? sql`(i.id = ${Number(id)} or i.title ilike ${like})`
-				: sql`(i.title ilike ${like} or i.description ilike ${like})`
+				: query
+					? sql`(i.search @@ ${query} or i.title ilike ${like} or exists (
+							select 1 from issue_events e where e.issue_id = i.id and e.kind = 'comment'
+								and to_tsvector('english'::regconfig, e.body) @@ ${query}))`
+					: sql`i.title ilike ${like}`
 		);
 	}
 	const cond = where.reduce((acc, w) => sql`${acc} and ${w}`);
 	const dir = f.dir === 'asc' ? sql`asc` : sql`desc`;
+	// best match first while searching with the default sort
+	const order =
+		query && f.sort === 'id' && f.dir === 'desc'
+			? sql`ts_rank(i.search, ${query}) desc, i.id desc`
+			: sql`${SORT_SQL[f.sort]} ${dir}, i.id desc`;
 
 	const from = sql`from issues i join apps a on a.id = i.app_id join statuses s on s.id = i.status_id`;
 
@@ -121,8 +141,8 @@ export async function listIssues(f: Filters): Promise<{ issues: Issue[]; total: 
 		sql<Issue[]>`
 			select ${issueColumns} ${from}
 			where ${cond}
-			order by ${SORT_SQL[f.sort]} ${dir}, i.id desc
-			limit ${PAGE_SIZE} offset ${(f.page - 1) * PAGE_SIZE}
+			order by ${order}
+			limit ${f.limit ?? PAGE_SIZE} offset ${(f.page - 1) * PAGE_SIZE}
 		`,
 		sql<{ total: number }[]>`select count(*)::int as total ${from} where ${cond}`
 	]);
@@ -261,7 +281,8 @@ const PATCHABLE = [
 	'parentId',
 	'size',
 	'severity',
-	'environment'
+	'environment',
+	'repeat'
 ] as const;
 
 /** Allowed values for enum-like fields; anything else is a 400. */
@@ -270,7 +291,8 @@ const ALLOWED: Partial<Record<(typeof PATCHABLE)[number], readonly unknown[]>> =
 	priority: PRIORITIES.map((p) => p.value),
 	size: SIZES,
 	severity: SEVERITIES.map((s) => s.value),
-	environment: ENVIRONMENTS.map((e) => e.value)
+	environment: ENVIRONMENTS.map((e) => e.value),
+	repeat: REPEATS.map((r) => r.value)
 };
 
 const FIELD_NAME: Record<(typeof PATCHABLE)[number], string> = {
@@ -288,7 +310,8 @@ const FIELD_NAME: Record<(typeof PATCHABLE)[number], string> = {
 	parentId: 'parent',
 	size: 'size',
 	severity: 'severity',
-	environment: 'environment'
+	environment: 'environment',
+	repeat: 'repeat'
 };
 
 type Raw = Record<(typeof PATCHABLE)[number], unknown>;
@@ -330,7 +353,7 @@ export async function updateIssue(
 		const tx = tx_ as unknown as Tx;
 		const [cur] = await tx<Raw[]>`
 			select title, description, app_id, type, status_id, priority, labels, version, fixed_in,
-				due_date::text as due_date, milestone_id, parent_id, size, severity, environment
+				due_date::text as due_date, milestone_id, parent_id, size, severity, environment, repeat
 			from issues where id = ${id} for update
 		`;
 		if (!cur) return null;
@@ -367,9 +390,60 @@ export async function updateIssue(
 
 		await tx`update issues set ${tx(set, Object.keys(set))}, updated_at = now() where id = ${id}`;
 		await tx`insert into issue_events ${tx(events)}`;
-		if ('statusId' in set) await syncClosedAt(tx, [id]);
+		if ('statusId' in set) {
+			await syncClosedAt(tx, [id]);
+			await spawnRepeat(tx, id, userId);
+		}
 		return changes;
 	});
+}
+
+/**
+ * A repeating issue that was just closed hands its repeat on to a fresh copy, due one interval
+ * after the old due date (or today), skipping intervals already past so missed ones don't pile up.
+ */
+async function spawnRepeat(tx: Tx, id: number, userId: number) {
+	const [old] = await tx<{ repeat: string }[]>`
+		select i.repeat from issues i join statuses s on s.id = i.status_id
+		where i.id = ${id} and s.is_closed and i.repeat is not null
+	`;
+	if (!old) return;
+	const step = REPEATS.find((r) => r.value === old.repeat)!.interval;
+	const [def] = await tx<{ id: number }[]>`
+		select id from statuses order by is_default desc, position limit 1
+	`;
+	const [next] = await tx<{ id: number }[]>`
+		insert into issues (app_id, type, title, description, status_id, priority, labels, size,
+			severity, environment, parent_id, repeat, due_date, created_by)
+		select app_id, type, title, description, ${def.id}, priority, labels, size,
+			severity, environment, parent_id, repeat,
+			(select max(d)::date from generate_series(
+				coalesce(due_date, current_date) + ${step}::interval,
+				greatest(coalesce(due_date, current_date), current_date) + ${step}::interval,
+				${step}::interval) d),
+			${userId}
+		from issues where id = ${id}
+		returning id
+	`;
+	await tx`update issues set repeat = null where id = ${id}`;
+	await tx`insert into issue_events ${tx([
+		{
+			issueId: id,
+			userId,
+			kind: 'change',
+			field: 'repeat',
+			oldValue: old.repeat,
+			newValue: `next is #${next.id}`
+		},
+		{
+			issueId: next.id,
+			userId,
+			kind: 'change',
+			field: 'repeat',
+			oldValue: null,
+			newValue: `${old.repeat}, after #${id}`
+		}
+	])}`;
 }
 
 async function syncClosedAt(tx: Tx, ids: number[]) {
@@ -378,6 +452,11 @@ async function syncClosedAt(tx: Tx, ids: number[]) {
 		set closed_at = case when s.is_closed then coalesce(i.closed_at, now()) else null end
 		from statuses s
 		where s.id = i.status_id and i.id = any(${ids}::int[])
+	`;
+	await tx`
+		delete from today_issues t using issues i, statuses s
+		where t.issue_id = i.id and i.status_id = s.id and s.is_closed
+			and i.id = any(${ids}::int[])
 	`;
 }
 
@@ -763,6 +842,17 @@ export async function moveStatus(id: number, delta: -1 | 1) {
 }
 
 // ---------- dashboard ----------
+
+/** Open issues in the user's chosen focus order, independent of priority and due date. */
+export async function listTodayIssues(userId: number): Promise<Issue[]> {
+	return sql<Issue[]>`
+		select ${issueColumns} from today_issues t
+		join issues i on i.id = t.issue_id join apps a on a.id = i.app_id
+		join statuses s on s.id = i.status_id
+		where t.user_id = ${userId} and not s.is_closed
+		order by t.position, t.issue_id
+	`;
+}
 
 /**
  * Solo-dev dashboard. "In progress" = open, not the default status, not a status named Blocked.

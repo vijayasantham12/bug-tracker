@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { api } from '#lib/api.ts';
 	import { notify } from '#lib/toast.svelte.ts';
-	import { ago } from '#lib/format.ts';
+	import { ago, fileSize } from '#lib/format.ts';
 	import { APP_NAME_MAX, toAppName } from '#lib/appname.ts';
 	import NotificationSettings from '#lib/components/NotificationSettings.svelte';
 	import type { PageProps } from './$types';
@@ -71,6 +71,21 @@
 		newToken = token;
 		copy(token, 'Token copied');
 	}
+
+	let backingUp = $state(false);
+	async function backupNow() {
+		backingUp = true;
+		try {
+			await api('POST', '/api/backup');
+			notify('Backup saved');
+		} finally {
+			backingUp = false;
+		}
+	}
+
+	const mcpCommand = $derived(
+		`claude mcp add --scope user --transport http bugs ${data.mcpUrl} --header "Authorization: Bearer ${newToken || '<your token>'}"`
+	);
 
 	let pw = $state({ current: '', next: '' });
 	async function changePassword() {
@@ -435,6 +450,40 @@
 		</section>
 	{/if}
 
+	{#if data.backup}
+		<section class="overflow-x-auto">
+			<h2 class="mb-1 font-semibold">Backups</h2>
+			{#if data.backup.enabled}
+				<p class="mb-3 text-xs text-zinc-500">
+					A <code>pg_dump</code> goes to the attachments bucket every night (UTC), under
+					<code>backups/</code>. Restore with
+					<code>pg_restore --clean --if-exists --no-owner -d "$DATABASE_URL" file.dump</code>.
+				</p>
+				<p class="mb-2 text-sm">
+					{#if data.backup.last}
+						Last backup {ago(new Date(data.backup.last.at))} ·
+						{fileSize(data.backup.last.size)} ·
+						<code class="text-xs">{data.backup.last.key}</code>
+					{:else}
+						No backup yet.
+					{/if}
+				</p>
+				{#if data.backup.error}
+					<p class="mb-2 text-sm text-red-600 dark:text-red-400">
+						Last attempt failed: {data.backup.error}
+					</p>
+				{/if}
+				<button class="btn" disabled={backingUp} onclick={backupNow}
+					>{backingUp ? 'Backing up…' : 'Back up now'}</button
+				>
+			{:else}
+				<p class="text-xs text-zinc-500">
+					Off: backups need S3 configured, and <code>BACKUP_KEEP_DAYS</code> above 0.
+				</p>
+			{/if}
+		</section>
+	{/if}
+
 	<section class="overflow-x-auto">
 		<h2 class="mb-1 font-semibold">Account</h2>
 		<p class="mb-3 text-xs text-zinc-500">Signed in as {data.user?.name} ({data.user?.email}).</p>
@@ -572,6 +621,22 @@
 				reach <code>{data.captureUrl}</code>; if you only run this on your laptop or LAN, the
 				shortcut works only on that network.
 			</p>
+		</details>
+
+		<details class="mt-3 max-w-3xl text-sm">
+			<summary class="cursor-pointer font-medium">Use it from Claude Code (MCP)</summary>
+			<p class="mt-2 text-zinc-700 dark:text-zinc-300">
+				Claude Code can then list, read, create, comment on and close issues from any project.
+				Reading an issue includes its comments, history and attachments: screenshots come through as
+				images and logs as text, so “find the root cause of #123” needs no copy-pasting. Run once
+				(create a token above first):
+			</p>
+			<pre
+				class="mt-2 overflow-x-auto rounded bg-zinc-100 p-2.5 text-xs whitespace-pre-wrap dark:bg-zinc-900">{mcpCommand}</pre>
+			<button
+				class="mt-1 text-xs text-zinc-400 hover:underline"
+				onclick={() => copy(mcpCommand, 'Command copied')}>copy</button
+			>
 		</details>
 
 		<details class="mt-3 max-w-3xl text-sm">
