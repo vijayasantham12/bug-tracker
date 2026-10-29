@@ -130,7 +130,7 @@ in the browser as you type, and the preview shows exactly what will be created, 
 ## Keyboard
 
 On the list: `j`/`k` move, `x` selects, `Enter` opens, `s` `p` `t` `m` set status / priority / type /
-milestone (then press a number) for the selected rows or the one under the cursor, `Esc` clears.
+milestone (then press a number) for the selected rows or the one under the cursor, `r` refreshes, `Esc` clears.
 Anywhere: `n` quick add, `m` capture, `/` search (list), `e` edit description, `Esc` back (issue page).
 
 ## Notifications

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
-	import { goto } from '$app/navigation';
+	import { goto, refreshAll } from '$app/navigation';
 	import { page } from '$app/state';
 	import QuickAdd from '#lib/components/QuickAdd.svelte';
 	import TodayToggle from '#lib/components/TodayToggle.svelte';
@@ -196,6 +196,17 @@
 		cursor = Math.max(0, Math.min(data.issues.length - 1, to));
 		document.querySelector(`[data-row="${cursor}"]`)?.scrollIntoView({ block: 'nearest' });
 	}
+	let refreshing = $state(false);
+	async function refresh() {
+		if (refreshing) return;
+		refreshing = true;
+		try {
+			await refreshAll();
+		} finally {
+			refreshing = false;
+		}
+	}
+
 	const PICKER_KEYS: Record<string, PickerKind> = {
 		s: 'status',
 		p: 'priority',
@@ -220,7 +231,8 @@
 			const id = data.issues[cursor].id;
 			if (selected.has(id)) selected.delete(id);
 			else selected.add(id);
-		} else if (PICKER_KEYS[k] && targets().length) picker = PICKER_KEYS[k];
+		} else if (k === 'r') refresh();
+		else if (PICKER_KEYS[k] && targets().length) picker = PICKER_KEYS[k];
 		else if (k === 'Escape' && (selected.size || cursor >= 0)) {
 			if (selected.size) selected.clear();
 			else cursor = -1;
@@ -474,6 +486,13 @@
 		>
 	{/if}
 	<span class="ml-auto text-zinc-400">{count}</span>
+	<button
+		class="rounded px-1.5 py-0.5 text-zinc-500 hover:bg-zinc-100 disabled:opacity-50 dark:hover:bg-zinc-900"
+		title="Refresh (r)"
+		aria-label="Refresh"
+		disabled={refreshing}
+		onclick={refresh}><span class="inline-block {refreshing ? 'animate-spin' : ''}">↻</span></button
+	>
 	<details class="relative" bind:this={columnsMenu}>
 		<summary
 			class="cursor-pointer list-none rounded px-1.5 py-0.5 text-zinc-500 select-none hover:bg-zinc-100 dark:hover:bg-zinc-900"
