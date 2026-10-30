@@ -44,7 +44,7 @@
 		{#each data.issues as issue (issue.id)}
 			<li id="issue-{issue.id}" class="scroll-mt-4 p-3">
 				<div class="flex flex-wrap items-center gap-2">
-					<span class="font-mono text-xs text-zinc-500">#{issue.id}</span>
+					<span class="text-xs text-zinc-500">#{issue.id}</span>
 					<span class="min-w-0 flex-1 font-medium break-words">{issue.title}</span>
 					<button
 						class="btn py-1"

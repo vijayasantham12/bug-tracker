@@ -4,8 +4,9 @@
 	let {
 		issueId,
 		selected,
-		compact = false
-	}: { issueId: number; selected: boolean; compact?: boolean } = $props();
+		compact = false,
+		shortcut
+	}: { issueId: number; selected: boolean; compact?: boolean; shortcut?: string } = $props();
 	let busy = $state(false);
 
 	async function toggle() {
@@ -28,7 +29,9 @@
 		: 'text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200'}"
 	aria-label="{selected ? 'Remove' : 'Add'} #{issueId} {selected ? 'from' : 'to'} Today"
 	aria-pressed={selected}
-	title={selected ? 'Remove from Today' : 'Add to Today'}
+	title="{selected ? 'Remove from Today' : 'Add to Today'}{shortcut ? ` (${shortcut})` : ''}"
+	data-key={shortcut}
+	aria-keyshortcuts={shortcut}
 	disabled={busy}
 	onclick={toggle}
 >

@@ -425,7 +425,7 @@
 					<input
 						readonly
 						value={inviteUrl}
-						class="input min-w-0 flex-1 font-mono text-xs"
+						class="input min-w-0 flex-1 text-xs"
 						onfocus={(e) => e.currentTarget.select()}
 					/>
 					<button class="btn" onclick={() => copy(inviteUrl)}>Copy</button>
@@ -566,7 +566,7 @@
 				<input
 					readonly
 					value={newToken}
-					class="input min-w-0 flex-1 font-mono text-xs"
+					class="input min-w-0 flex-1 text-xs"
 					onfocus={(e) => e.currentTarget.select()}
 				/>
 				<button class="btn" onclick={() => copy(newToken, 'Token copied')}>Copy</button>
