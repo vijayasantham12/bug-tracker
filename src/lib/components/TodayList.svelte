@@ -139,6 +139,15 @@
 					>
 					<div class="min-w-0 flex-1 basis-36">
 						<a href="/issues/{issue.id}" class="break-words hover:underline">{issue.title}</a>
+						{#if issue.nextAction || issue.stopped}
+							<p
+								class="mt-1 line-clamp-2 text-xs break-words text-zinc-600 dark:text-zinc-400"
+								title={issue.nextAction || issue.stopped}
+							>
+								<span class="font-medium">{issue.nextAction ? 'Next:' : 'Stopped:'}</span>
+								{issue.nextAction || issue.stopped}
+							</p>
+						{/if}
 						<div class="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-zinc-500">
 							<span class="font-mono">#{issue.id}</span>
 							<span class="inline-flex items-center gap-1"

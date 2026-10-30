@@ -268,7 +268,7 @@
 	</section>
 
 	<section class="overflow-x-auto">
-		<h2 class="mb-1 font-semibold">Milestones</h2>
+		<h2 id="milestones" class="mb-1 font-semibold">Milestones</h2>
 		<p class="mb-3 text-xs text-zinc-500">
 			Target releases. Also created from <code>^name</code> in quick add. Marking one done hides it from
 			pickers; deleting one keeps its issues, just without a milestone.
@@ -317,6 +317,9 @@
 							/></td
 						>
 						<td class="text-right">
+							<a href="/milestones/{m.id}" class="mr-3 text-xs text-zinc-500 hover:underline"
+								>Hill Chart →</a
+							>
 							<button
 								class="text-xs text-zinc-400 hover:text-red-500"
 								onclick={() =>
@@ -616,10 +619,10 @@
 			</ol>
 			<p class="mt-2 text-xs text-zinc-500">
 				Use it from Photos or a screenshot (attached as an image), Safari (the page becomes a link
-				on the issue) or any text. Without <code>@app</code> it goes to the app of your last issue.
-				Leave the question empty and a screenshot gets a dated title. The phone must be able to
-				reach <code>{data.captureUrl}</code>; if you only run this on your laptop or LAN, the
-				shortcut works only on that network.
+				on the issue) or any text. Without <code>@app</code> it goes to Inbox. Leave the question
+				empty and a screenshot gets a dated title. The phone must be able to reach
+				<code>{data.captureUrl}</code>; if you only run this on your laptop or LAN, the shortcut
+				works only on that network.
 			</p>
 		</details>
 

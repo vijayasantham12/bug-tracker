@@ -22,6 +22,7 @@
 		attachmentsEnabled,
 		onadded,
 		autofocus = false,
+		inbox = false,
 		onescape
 	}: {
 		apps: App[];
@@ -30,6 +31,8 @@
 		onadded?: (ids: number[]) => void;
 		/** focus the box on mount (the popup from other pages) */
 		autofocus?: boolean;
+		/** Start captures without an app while processing Inbox. */
+		inbox?: boolean;
 		/** Esc in the box; defaults to just leaving it */
 		onescape?: () => void;
 	} = $props();
@@ -66,10 +69,10 @@
 
 	onMount(() => {
 		try {
-			defaultApp = localStorage.getItem('qa.app') ?? apps[0]?.name ?? '';
+			defaultApp = localStorage.getItem('qa.app') ?? '';
 			defaultType = (localStorage.getItem('qa.type') as IssueType) ?? 'bug';
 		} catch {
-			defaultApp = apps[0]?.name ?? '';
+			defaultApp = '';
 		}
 		if (autofocus) input?.focus();
 		const onKey = (e: KeyboardEvent) => {
@@ -88,6 +91,13 @@
 		};
 		window.addEventListener('keydown', onKey);
 		return () => window.removeEventListener('keydown', onKey);
+	});
+
+	$effect(() => {
+		if (inbox) {
+			defaultApp = '';
+			defaultType = 'task';
+		}
 	});
 
 	$effect(() => {
@@ -120,7 +130,6 @@
 			apps: p.apps.length ? p.apps : defaultApp ? [defaultApp] : [],
 			type: p.type ?? defaultType
 		}));
-		if (items.some((i) => !i.apps.length)) return notify('Pick an app, or add @app', true);
 		busy = true;
 		try {
 			const { ids } = await api<{ ids: number[] }>('POST', '/api/issues', { items });
@@ -184,7 +193,7 @@
 			class="cell-select mx-0 max-w-40 py-1 text-zinc-500"
 			title="Default app (when no @app)"
 		>
-			<option value="">— app —</option>
+			<option value="">Inbox (no app)</option>
 			{#each apps.filter((a) => !a.archived) as a (a.id)}<option value={a.name}>{a.name}</option
 				>{/each}
 		</select>
@@ -230,7 +239,7 @@
 							@{a}{known.has(a.toLowerCase()) ? '' : ' (new)'}
 						</span>
 					{:else}
-						<span class="text-red-500">no app</span>
+						<span class="chip text-zinc-500">Inbox</span>
 					{/each}
 					{#if p.priority !== undefined}<span>{PRIORITIES[p.priority].label}</span>{/if}
 					{#each p.labels ?? [] as l (l)}<span class="text-zinc-500">+{l}</span>{/each}

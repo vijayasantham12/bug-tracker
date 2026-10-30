@@ -4,6 +4,7 @@ import { takeDueReminders, type IssueChange } from './repo';
 import { NOTIFY_DEFAULTS, type NotifyPrefs } from '#lib/types.ts';
 import { pruneNotifications } from './notifications';
 import { backupIfDue } from './backup';
+import { pruneTrash } from './trash';
 
 /**
  * What triggers a push notification. Callers fire these after the write succeeded and don't
@@ -34,7 +35,7 @@ function getFacts(ids: number[]) {
 		select i.id, i.title, i.type, i.severity, i.environment, i.created_by,
 			s.name as status_name, s.is_closed
 		from issues i join statuses s on s.id = i.status_id
-		where i.id = any(${ids}::int[])
+		where i.id = any(${ids}::int[]) and i.deleted_at is null
 	`;
 }
 
@@ -91,11 +92,11 @@ async function notifyUnblocked(closed: IssueFacts) {
 		from issue_relations r
 		join issues x on x.id = r.to_id
 		join statuses xs on xs.id = x.status_id
-		where r.from_id = ${closed.id} and r.kind = 'blocks' and not xs.is_closed
+		where r.from_id = ${closed.id} and r.kind = 'blocks' and not xs.is_closed and x.deleted_at is null
 			and not exists (
 				select 1 from issue_relations r2
 				join issues b on b.id = r2.from_id join statuses bs on bs.id = b.status_id
-				where r2.to_id = x.id and r2.kind = 'blocks' and not bs.is_closed
+				where r2.to_id = x.id and r2.kind = 'blocks' and not bs.is_closed and b.deleted_at is null
 			)
 	`;
 	if (!freed.length) return;
@@ -138,7 +139,7 @@ export function startScheduler() {
 	const tick = () => {
 		// Retention must still run when a push service or another notification job fails.
 		if (Date.now() - lastCleanup >= 3_600_000)
-			pruneNotifications()
+			Promise.all([pruneNotifications(), pruneTrash()])
 				.then(() => {
 					lastCleanup = Date.now();
 				})
@@ -226,12 +227,12 @@ export async function digestFor(date: string): Promise<PushPayload | null> {
 			(count(*) filter (where i.type = 'bug' and i.environment = 'production'
 				and i.severity in ('critical', 'major')))::int as prod_bugs
 		from issues i join statuses s on s.id = i.status_id
-		where not s.is_closed
+		where not s.is_closed and i.deleted_at is null
 	`;
 	const milestones = await sql<{ name: string; dueDate: string; open: number }[]>`
 		select m.name, m.due_date::text as due_date, count(i.id)::int as open
 		from milestones m
-		join issues i on i.milestone_id = m.id
+		join issues i on i.milestone_id = m.id and i.deleted_at is null
 		join statuses s on s.id = i.status_id and not s.is_closed
 		where not m.done and m.due_date between ${date}::date and ${date}::date + 1
 		group by m.id

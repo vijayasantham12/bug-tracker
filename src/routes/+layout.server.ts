@@ -1,5 +1,5 @@
 import type { LayoutServerLoad } from './$types';
-import { listApps, listMilestones, listStatuses } from '#lib/server/repo.ts';
+import { inboxCount, listApps, listMilestones, listStatuses } from '#lib/server/repo.ts';
 import { s3Enabled } from '#lib/server/s3.ts';
 import { unreadNotificationCount } from '#lib/server/notifications.ts';
 import { listTodayIds } from '#lib/server/today.ts';
@@ -14,14 +14,16 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 			milestones: [],
 			attachmentsEnabled: false,
 			unreadCount: 0,
+			inboxCount: 0,
 			todayIds: [] as number[]
 		};
-	const [apps, statuses, milestones, unreadCount, todayIds] = await Promise.all([
+	const [apps, statuses, milestones, unreadCount, todayIds, captures] = await Promise.all([
 		listApps(),
 		listStatuses(),
 		listMilestones(),
 		unreadNotificationCount(locals.user.id),
-		listTodayIds(locals.user.id)
+		listTodayIds(locals.user.id),
+		inboxCount()
 	]);
 	return {
 		user: locals.user,
@@ -30,6 +32,7 @@ export const load: LayoutServerLoad = async ({ locals }) => {
 		milestones,
 		attachmentsEnabled: s3Enabled,
 		unreadCount,
+		inboxCount: captures,
 		todayIds
 	};
 };

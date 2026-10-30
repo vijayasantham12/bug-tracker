@@ -10,6 +10,7 @@
 	import { nav } from '#lib/nav.svelte.ts';
 	import {
 		filtersToQuery,
+		DATE_FIELDS,
 		PAGE_SIZE,
 		parseFilters,
 		type Filters,
@@ -62,6 +63,8 @@
 
 	// any filter or sort change starts again from page 1
 	function setFilters(patch: Partial<Filters>) {
+		if (patch.apps && patch.inbox === undefined) patch.inbox = false;
+		if (patch.inbox) patch.apps = [];
 		goto(`/${filtersToQuery({ ...filters, page: 1, ...patch })}`, { replace: true, reset: false });
 	}
 	const pageUrl = (n: number) => `/${filtersToQuery({ ...filters, page: n })}`;
@@ -92,7 +95,12 @@
 		api('PATCH', '/api/issues', { ids: [...selected], patch });
 
 	async function deleteSelected() {
-		if (!confirm(`Delete ${selected.size} issue(s)? This cannot be undone.`)) return;
+		if (
+			!confirm(
+				`Move ${selected.size} issue(s) and their active subtasks to Trash? You can restore them for 30 days.`
+			)
+		)
+			return;
 		await api('DELETE', '/api/issues', { ids: [...selected] });
 		selected.clear();
 	}
@@ -107,6 +115,10 @@
 	);
 	const isFiltered = $derived(
 		filtersToQuery({ ...filters, sort: 'id', dir: 'desc', page: 1 }) !== ''
+	);
+	const inboxOnly = $derived(
+		filtersToQuery({ ...filters, dateField: 'created', sort: 'id', dir: 'desc', page: 1 }) ===
+			'?inbox=1'
 	);
 	// saved views: the current filters + sort, without the page
 	const viewQuery = $derived(filtersToQuery({ ...filters, page: 1 }));
@@ -271,6 +283,15 @@
 	});
 </script>
 
+{#if filters.inbox}
+	<div class="mb-3">
+		<h1 class="font-semibold">Inbox</h1>
+		<p class="mt-1 text-sm text-zinc-500">
+			Capture now, organize later. Move an issue to an app when you're ready.
+		</p>
+	</div>
+{/if}
+
 <div class="mb-2 flex justify-end">
 	<a href="/dashboard#today" class="text-xs text-amber-700 hover:underline dark:text-amber-400">
 		★ Today · {data.todayIds.length} →
@@ -278,6 +299,7 @@
 </div>
 
 <QuickAdd
+	inbox={filters.inbox}
 	apps={data.apps}
 	milestones={data.milestones}
 	attachmentsEnabled={data.attachmentsEnabled}
@@ -314,12 +336,18 @@
 <!-- apps -->
 <div class="mt-4 flex flex-wrap items-center gap-1.5">
 	<button
-		class="chip {filters.apps.length
+		class="chip {filters.apps.length || filters.inbox
 			? ''
 			: 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'}"
 		onclick={() => setFilters({ apps: [] })}
 	>
 		All apps
+	</button>
+	<button
+		class="chip {filters.inbox ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900' : ''}"
+		onclick={() => setFilters({ inbox: !filters.inbox })}
+	>
+		Inbox <span class="opacity-60">{data.inboxCount}</span>
 	</button>
 	{#each visibleApps as a (a.id)}
 		{@const on = filters.apps.some((x) => x.toLowerCase() === a.name.toLowerCase())}
@@ -400,6 +428,43 @@
 			: 'text-zinc-500'}"
 		onclick={() => setFilters({ overdue: !filters.overdue, dueWeek: false })}>Overdue</button
 	>
+	<div class="flex flex-wrap items-center gap-2" role="group" aria-label="Date range filter">
+		<select
+			class="input"
+			aria-label="Date field"
+			value={filters.dateField}
+			onchange={(e) => setFilters({ dateField: e.currentTarget.value as Filters['dateField'] })}
+		>
+			{#each DATE_FIELDS as field (field.value)}<option value={field.value}>{field.label}</option
+				>{/each}
+		</select>
+		<label class="flex items-center gap-1 text-xs text-zinc-500"
+			>From
+			<input
+				type="date"
+				class="input"
+				value={filters.dateFrom}
+				max={filters.dateTo || undefined}
+				onchange={(e) => setFilters({ dateFrom: e.currentTarget.value })}
+			/>
+		</label>
+		<label class="flex items-center gap-1 text-xs text-zinc-500"
+			>To
+			<input
+				type="date"
+				class="input"
+				value={filters.dateTo}
+				min={filters.dateFrom || undefined}
+				onchange={(e) => setFilters({ dateTo: e.currentTarget.value })}
+			/>
+		</label>
+		{#if filters.dateFrom || filters.dateTo}
+			<button
+				class="text-xs text-zinc-500 hover:underline"
+				onclick={() => setFilters({ dateFrom: '', dateTo: '' })}>Clear dates</button
+			>
+		{/if}
+	</div>
 	{#if data.labels.length}
 		<select
 			class="input"
@@ -462,6 +527,11 @@
 	{/snippet}
 	{#if filters.sizes.length}
 		{@render activeChip(`Size ${filters.sizes.join(', ').toUpperCase()}`, { sizes: [] })}
+	{/if}
+	{#if filters.milestone && filters.milestone !== 'none'}
+		<a href="/milestones/{filters.milestone}" class="text-xs text-zinc-500 hover:underline"
+			>Milestone Hill Chart →</a
+		>
 	{/if}
 	{#if filters.dueWeek}{@render activeChip('Due this week', { dueWeek: false })}{/if}
 	{#if filters.blocked}{@render activeChip('Blocked', { blocked: false })}{/if}
@@ -555,11 +625,14 @@
 		<select
 			class="input py-0.5"
 			onchange={(e) => {
-				patchSelected({ appId: Number(e.currentTarget.value) });
+				patchSelected({
+					appId: e.currentTarget.value === 'inbox' ? null : Number(e.currentTarget.value)
+				});
 				e.currentTarget.value = '';
 			}}
 		>
 			<option value="">Move to app…</option>
+			<option value="inbox">Inbox (no app)</option>
 			{#each data.apps as a (a.id)}<option value={a.id}>{a.name}</option>{/each}
 		</select>
 		<select
@@ -586,7 +659,7 @@
 			<option value="none">No size</option>
 			{#each SIZES as sz (sz)}<option value={sz}>{sz.toUpperCase()}</option>{/each}
 		</select>
-		<button class="btn-danger py-0.5" onclick={deleteSelected}>Delete</button>
+		<button class="btn-danger py-0.5" onclick={deleteSelected}>Move to Trash</button>
 		<button class="ml-auto text-zinc-500 hover:underline" onclick={() => selected.clear()}
 			>Clear selection</button
 		>
@@ -729,13 +802,27 @@
 						{/if}
 					</td>
 					<td class="px-2 py-1.5 whitespace-nowrap">
-						<button
-							class="inline-flex items-center gap-1.5 hover:underline"
-							onclick={() => setFilters({ apps: [issue.appName] })}
-						>
-							<span class="size-2 rounded-full" style="background:{issue.appColor}"
-							></span>{issue.appName}
-						</button>
+						{#if issue.appId === null}
+							<select
+								class="cell-select text-zinc-500"
+								value=""
+								aria-label="Move issue #{issue.id} to app"
+								onchange={(e) => patchOne(issue.id, { appId: Number(e.currentTarget.value) })}
+							>
+								<option value="">Inbox → move to…</option>
+								{#each data.apps.filter((a) => !a.archived) as a (a.id)}<option value={a.id}
+										>{a.name}</option
+									>{/each}
+							</select>
+						{:else}
+							<button
+								class="inline-flex items-center gap-1.5 hover:underline"
+								onclick={() => setFilters({ apps: [issue.appName] })}
+							>
+								<span class="size-2 rounded-full" style="background:{issue.appColor}"
+								></span>{issue.appName}
+							</button>
+						{/if}
 					</td>
 					<td class="px-2 py-1.5">
 						<select
@@ -819,6 +906,8 @@
 						{#if data.total}
 							Page {filters.page} is past the end.
 							<a href={pageUrl(pages)} class="underline">Go to page {pages}</a>
+						{:else if inboxOnly}
+							Inbox is clear. Capture an idea above whenever you need to.
 						{:else if isFiltered}
 							No issues match these filters.
 						{:else}

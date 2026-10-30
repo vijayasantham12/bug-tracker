@@ -38,19 +38,27 @@ function cleanFields<T extends NewSubtask>(it: T, fallbackType: IssueType) {
 	};
 }
 
-/** Untrusted create payload → items that each have a title and at least one app. */
+/** Untrusted create payload → titled items; an empty app list goes to Inbox. */
 export function cleanNewIssues(items: unknown): NewIssue[] {
 	if (!Array.isArray(items)) return [];
 	return (items as NewIssue[])
-		.map((it) => ({
-			...cleanFields(it, 'bug'),
-			apps: [...new Set((it.apps ?? []).map((a) => toAppName(String(a))).filter(Boolean))],
-			milestone: typeof it.milestone === 'string' ? it.milestone.trim() || undefined : undefined,
-			parentId: Number.isInteger(it.parentId) ? it.parentId : undefined,
-			subtasks: (Array.isArray(it.subtasks) ? it.subtasks : [])
-				.slice(0, MAX_SUBTASKS)
-				.map((sub) => cleanFields(sub, 'task'))
-				.filter((sub) => sub.title)
-		}))
-		.filter((it) => it.title && it.apps.length);
+		.filter((it) => it && typeof it === 'object')
+		.map((it) => {
+			const apps = [
+				...new Set(
+					(Array.isArray(it.apps) ? it.apps : []).map((a) => toAppName(String(a))).filter(Boolean)
+				)
+			];
+			return {
+				...cleanFields(it, apps.length ? 'bug' : 'task'),
+				apps,
+				milestone: typeof it.milestone === 'string' ? it.milestone.trim() || undefined : undefined,
+				parentId: Number.isInteger(it.parentId) ? it.parentId : undefined,
+				subtasks: (Array.isArray(it.subtasks) ? it.subtasks : [])
+					.slice(0, MAX_SUBTASKS)
+					.map((sub) => cleanFields(sub, 'task'))
+					.filter((sub) => sub.title)
+			};
+		})
+		.filter((it) => it.title);
 }

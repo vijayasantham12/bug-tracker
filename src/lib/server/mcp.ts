@@ -17,7 +17,6 @@ import {
 	createIssues,
 	getAttachment,
 	getIssue,
-	lastUsedApp,
 	listAttachments,
 	listEvents,
 	listIssues,
@@ -29,6 +28,7 @@ import {
 	updateIssue
 } from './repo';
 import { cleanNewIssues } from './validate';
+import { listTrash, restoreIssues, TRASH_DAYS } from './trash';
 import { afterComment, afterIssueChanged, afterIssuesCreated } from './notify';
 import { getObject, s3Enabled, signedUrl } from './s3';
 
@@ -85,7 +85,8 @@ const labelsArg = (v: unknown) =>
 
 function issueId(args: Record<string, unknown>) {
 	const id = Number(String(args.id ?? '').replace(/^#/, ''));
-	if (!Number.isInteger(id) || id <= 0) error(400, 'Pass the issue number as id, e.g. 123');
+	if (!Number.isInteger(id) || id <= 0 || id > 2147483647)
+		error(400, 'Pass the issue number as id, e.g. 123');
 	return id;
 }
 
@@ -99,6 +100,7 @@ function summaryLine(i: Issue, statusName: string) {
 	const extra = [
 		i.dueDate && `due ${i.dueDate}`,
 		i.isBlocked && 'blocked',
+		i.nextAction && `next: ${i.nextAction.replace(/\s+/g, ' ').slice(0, 160)}`,
 		i.severity && i.severity,
 		i.environment && i.environment,
 		i.labels.length && i.labels.map((l) => `+${l}`).join(' '),
@@ -118,7 +120,8 @@ const listIssuesTool: Tool = {
 		properties: {
 			query: {
 				type: 'string',
-				description: 'Full-text search over title, description and comments, or "#123"'
+				description:
+					'Full-text search over title, description, resume notes and comments, or "#123"'
 			},
 			app: { type: 'string', description: 'App name, e.g. "shop"' },
 			status: {
@@ -173,7 +176,7 @@ const listIssuesTool: Tool = {
 const getIssueTool: Tool = {
 	name: 'get_issue',
 	description:
-		'Read one issue completely: fields, description, comments, change history, links, related issues, subtasks, and its attachments (screenshots are returned as images, logs and other text files as text). Use this before investigating or fixing an issue.',
+		'Read one issue completely: fields, description, resume notes, comments, change history, links, related issues, subtasks, and its attachments (screenshots are returned as images, logs and other text files as text). Use this before investigating or fixing an issue.',
 	inputSchema: {
 		type: 'object',
 		properties: {
@@ -242,6 +245,15 @@ const getIssueTool: Tool = {
 		if (links.length)
 			out.push('', '## Links', ...links.map((l) => `- ${l.title ? `${l.title}: ` : ''}${l.url}`));
 		out.push('', '## Description', issue.description.trim() || '(none)');
+		if (issue.stopped || issue.nextAction)
+			out.push(
+				'',
+				'## Resume work',
+				'### Where I stopped',
+				issue.stopped || '(none)',
+				'### Next action',
+				issue.nextAction || '(none)'
+			);
 
 		const activity = events
 			.filter((e) => e.kind === 'comment' || e.field !== 'description')
@@ -309,7 +321,7 @@ const getIssueTool: Tool = {
 const createIssueTool: Tool = {
 	name: 'create_issue',
 	description:
-		'File a new issue. The title may use quick-add tokens: "bug:"/"feat:"/"task:"/"imp:" prefix, @app, !high, +label, ^milestone, ~size, *fri (due). Without an app it goes to the app of your last issue.',
+		'File a new issue. The title may use quick-add tokens: "bug:"/"feat:"/"task:"/"imp:" prefix, @app, !high, +label, ^milestone, ~size, *fri (due). Without an app it goes to Inbox.',
 	inputSchema: {
 		type: 'object',
 		properties: {
@@ -329,7 +341,7 @@ const createIssueTool: Tool = {
 	async run(args, { user, origin }) {
 		const parsed = parseLine(String(args.title ?? '').split('\n')[0]);
 		if (!parsed) error(400, 'The title is empty');
-		const app = str(args.app) ?? parsed.apps[0] ?? (await lastUsedApp(user.id));
+		const app = str(args.app) ?? parsed.apps[0];
 		const [item] = cleanNewIssues([
 			{
 				...parsed,
@@ -342,7 +354,7 @@ const createIssueTool: Tool = {
 				parentId: args.parent_id ? Number(args.parent_id) : undefined
 			}
 		]);
-		if (!item) error(400, 'Say which app it belongs to (no apps exist yet)');
+		if (!item) error(400, 'The title is empty');
 		const { ids } = await createIssues([item], user.id);
 		const patch: IssuePatch = {};
 		if (str(args.severity)) patch.severity = args.severity as never;
@@ -356,7 +368,7 @@ const createIssueTool: Tool = {
 const updateIssueTool: Tool = {
 	name: 'update_issue',
 	description:
-		'Change fields of an issue: status, priority, labels, fixed_in version, title or description.',
+		'Change fields of an issue, including resume notes. Use stopped and next_action to record where work paused and the next concrete step; pass an empty string to clear a note.',
 	inputSchema: {
 		type: 'object',
 		properties: {
@@ -366,7 +378,17 @@ const updateIssueTool: Tool = {
 			labels: { type: 'array', items: { type: 'string' }, description: 'Replaces all labels' },
 			fixed_in: { type: 'string' },
 			title: { type: 'string' },
-			description: { type: 'string', description: 'Replaces the description (Markdown)' }
+			description: { type: 'string', description: 'Replaces the description (Markdown)' },
+			stopped: {
+				type: 'string',
+				maxLength: 20000,
+				description: 'Where work stopped: findings, attempts and context'
+			},
+			next_action: {
+				type: 'string',
+				maxLength: 20000,
+				description: 'First concrete step when work resumes'
+			}
 		},
 		required: ['id']
 	},
@@ -380,6 +402,8 @@ const updateIssueTool: Tool = {
 		if (labelsArg(args.labels)) patch.labels = labelsArg(args.labels);
 		if (str(args.fixed_in)) patch.fixedIn = str(args.fixed_in)!;
 		if (str(args.title)) patch.title = str(args.title)!;
+		if (args.stopped !== undefined) patch.stopped = args.stopped as string;
+		if (args.next_action !== undefined) patch.nextAction = args.next_action as string;
 		if (typeof args.description === 'string') patch.description = args.description;
 		const changes = (await updateIssue(id, patch, user.id)) ?? [];
 		afterIssueChanged(id, changes, user.id);
@@ -455,11 +479,46 @@ const closeIssueTool: Tool = {
 	}
 };
 
+const listTrashTool: Tool = {
+	name: 'list_trash',
+	description: `List deleted issues recoverable within ${TRASH_DAYS} days. Use restore_issue to recover one with its original context.`,
+	inputSchema: { type: 'object', properties: { page: { type: 'integer', minimum: 1 } } },
+	async run(args) {
+		const page = Number(args.page ?? 1);
+		if (!Number.isSafeInteger(page) || page < 1 || page > 1_000_000) error(400, 'Invalid page');
+		const { issues, total } = await listTrash(page);
+		return text(
+			issues.length
+				? issues
+						.map(
+							(i) =>
+								`#${i.id} @${i.appName} — ${i.title} (recover before ${stamp(i.expiresAt)} UTC${i.trashedParentId ? `; restore parent #${i.trashedParentId} first` : ''})`
+						)
+						.join('\n') + `\n${total} recoverable issue(s); page ${page}.`
+				: 'No issues on this Trash page.'
+		);
+	}
+};
+
+const restoreIssueTool: Tool = {
+	name: 'restore_issue',
+	description:
+		'Restore a deleted issue with its history, attachments, links, and resume notes. Restoring a parent also restores subtasks moved with it. Does not add it back to Today.',
+	inputSchema: { type: 'object', properties: { id: { type: 'number' } }, required: ['id'] },
+	async run(args, { user, origin }) {
+		const id = issueId(args);
+		const ids = await restoreIssues([id], user.id);
+		return text(`Restored ${ids.map((i) => `#${i}`).join(', ')}: ${origin}/issues/${id}`);
+	}
+};
+
 export const TOOLS: Tool[] = [
 	listIssuesTool,
 	getIssueTool,
 	createIssueTool,
 	updateIssueTool,
 	addCommentTool,
-	closeIssueTool
+	closeIssueTool,
+	listTrashTool,
+	restoreIssueTool
 ];

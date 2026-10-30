@@ -5,7 +5,7 @@ export async function listTodayIds(userId: number): Promise<number[]> {
 	const rows = await sql<{ issueId: number }[]>`
 		select t.issue_id from today_issues t
 		join issues i on i.id = t.issue_id join statuses s on s.id = i.status_id
-		where t.user_id = ${userId} and not s.is_closed
+		where t.user_id = ${userId} and not s.is_closed and i.deleted_at is null
 		order by t.position, t.issue_id
 	`;
 	return rows.map((r) => r.issueId);
@@ -17,7 +17,7 @@ export async function addToToday(userId: number, issueId: number) {
 		await tx`select id from users where id = ${userId} for no key update`;
 		const [issue] = await tx<{ isClosed: boolean }[]>`
 			select s.is_closed from issues i join statuses s on s.id = i.status_id
-			where i.id = ${issueId} for share of i
+			where i.id = ${issueId} and i.deleted_at is null for share of i
 		`;
 		if (!issue) error(404, 'Issue not found');
 		if (issue.isClosed) error(400, 'Reopen this issue before adding it to Today');
@@ -43,7 +43,7 @@ export async function reorderToday(userId: number, ids: number[]) {
 		const current = await tx<{ issueId: number }[]>`
 			select t.issue_id from today_issues t
 			join issues i on i.id = t.issue_id join statuses s on s.id = i.status_id
-			where t.user_id = ${userId} and not s.is_closed
+			where t.user_id = ${userId} and not s.is_closed and i.deleted_at is null
 		`;
 		const members = new Set(current.map((r) => r.issueId));
 		if (members.size !== ids.length || ids.some((id) => !members.has(id)))

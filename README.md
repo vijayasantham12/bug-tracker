@@ -94,18 +94,20 @@ bug: checkout crashes on safari @shop @admin !high +payments -- only on iOS 18
 feat: csv export @shop
 ```
 
-| Token                                          | Meaning                                                                   |
-| ---------------------------------------------- | ------------------------------------------------------------------------- |
-| `bug:` `feat:` `task:` `imp:`                  | type (falls back to the type picker on the left)                          |
-| `@app`                                         | app; repeat to file the same issue in several apps; new names are created |
-| `!urgent` `!high` `!normal` `!low` / `!0`–`!3` | priority (default normal)                                                 |
-| `+label`                                       | labels                                                                    |
-| `^v1.3`                                        | milestone (created if new)                                                |
-| `~xs` `~s` `~m` `~l` `~xl`                     | size                                                                      |
-| `*fri` `*tomorrow` `*2w` `*nov5` `*2026-11-05` | due date (weekdays mean the next one, never today)                        |
-| `-- text`                                      | description                                                               |
+| Token                                          | Meaning                                                                      |
+| ---------------------------------------------- | ---------------------------------------------------------------------------- |
+| `bug:` `feat:` `task:` `imp:`                  | type (falls back to the type picker on the left)                             |
+| `@app`                                         | app; repeat for a copy in each app, linked as related; new names are created |
+| `!urgent` `!high` `!normal` `!low` / `!0`–`!3` | priority (default normal)                                                    |
+| `+label`                                       | labels                                                                       |
+| `^v1.3`                                        | milestone (created if new)                                                   |
+| `~xs` `~s` `~m` `~l` `~xl`                     | size                                                                         |
+| `*fri` `*tomorrow` `*2w` `*nov5` `*2026-11-05` | due date (weekdays mean the next one, never today)                           |
+| `-- text`                                      | description                                                                  |
 
-Without `@app`, the app picker on the right is used (remembered per browser). Typing `@`, `^`, `+` or `*`
+Without `@app`, the app picker on the right is used (remembered per browser). Choose **Inbox (no app)**
+to capture without organizing; this is the default on the Inbox page and when no app has been chosen yet.
+Typing `@`, `^`, `+` or `*`
 suggests apps, milestones, labels or dates; `Tab` takes the first. Leading list bullets (`-`, `1.`, `- [ ]`)
 are ignored, so a pasted list becomes one issue per line. Similar open issues are flagged as you type.
 
@@ -133,6 +135,14 @@ On the list: `j`/`k` move, `x` selects, `Enter` opens, `s` `p` `t` `m` set statu
 milestone (then press a number) for the selected rows or the one under the cursor, `r` refreshes, `Esc` clears.
 Anywhere: `n` quick add, `m` capture, `/` search (list), `e` edit description, `Esc` back (issue page).
 
+**Ctrl+K / Cmd+K** opens the global command palette from any page, including while editing a field.
+Use it to search issue titles, descriptions, comments, and resume notes across apps and statuses, or type
+an issue number (`#123`) to jump directly. With an empty search, it shows recently updated issues and
+common actions. You can also find apps, active milestones, Today, Inbox, Capture, Trash, and Settings.
+Use **↑ / ↓** to select, **Enter** to open, and **Esc** to close; clicking the header's **Search** button
+works on mobile too. **New issue** opens quick add. The palette excludes trashed issues and preserves
+unsaved edits when closed. The shortcut stays inactive inside an existing quick-add popup to preserve its draft.
+
 ## Notifications
 
 Push notifications instead of email: Settings → **Notifications** → **Turn on for this device**, once per
@@ -155,7 +165,7 @@ Reminders and digests are checked once a minute by the server process.
 Settings → **API tokens** creates a personal token (shown once, stored hashed). `POST /api/capture` takes
 `{ "text": "quick-add syntax", "content": "<base64 image or text>" }` with `Authorization: Bearer <token>`:
 an image is attached, a shared URL becomes a link, other text goes in the description, and without `@app`
-it uses the app of your last issue. Settings has step-by-step instructions for an iOS Shortcut that puts
+it goes to Inbox (or pass an explicit `app` in the JSON). Settings has step-by-step instructions for an iOS Shortcut that puts
 **Add bug** in the Share sheet (iOS doesn't support web-app share targets). Tokens only work for `/api/*`.
 
 ## Claude Code (MCP)
@@ -208,6 +218,25 @@ is installed; earlier push notifications cannot be recovered.
 
 ## Views
 
+- **Milestones** (`/milestones`) — open a milestone's **Hill Chart** to track its main pieces of work.
+  Add named dots (for example Checkout, Email delivery, Launch marketing), then drag them uphill as
+  you resolve unknowns and downhill as you execute the plan. The peak means the approach is figured out;
+  the right edge means finished. Sliders and arrow keys also move dots; Shift+arrow moves ten steps,
+  Home/End go to the edges. Select a numbered piece below the chart to bring an overlapping dot forward.
+  Changes stay in a draft until **Save update**, with an optional note. **Cancel changes** restores the
+  saved chart. Each save keeps a dated snapshot with the author and note; **Older / Newer** browses the
+  latest 50 snapshots. Names and colors in old snapshots are preserved when dots are renamed or removed.
+  Positions are manual and independent of issue counts or milestone completion. Concurrent edits from
+  another tab are rejected rather than overwriting a newer update. Charts also link from Dashboard,
+  Settings, and a milestone-filtered issue list. Deleting a milestone deletes its chart and snapshots,
+  while its issues remain without a milestone.
+
+- **Inbox** (`/?inbox=1`) — captures without an app. Add tasks immediately, then use the app picker
+  on each row, the bulk **Move to app…** action, or the issue's App field to organize them later.
+  Moving an issue to an app removes it from Inbox; choosing **Inbox (no app)** moves it back.
+  The navigation count shows open Inbox issues. Inbox captures also work with attachments, reminders,
+  subtasks, Today, meeting capture, API capture, and MCP. API/MCP captures without an app go to Inbox.
+
 - **Today** (top of Dashboard) — your personal, manually ordered focus list. Click ☆ beside an open
   issue in the list or dashboard suggestions, or **Add to Today** on its detail page. Pick 1–3 issues
   (there is no hard limit), drag the handle or use ↑ / ↓ to reorder, and click ✓ to mark an issue Done
@@ -226,6 +255,12 @@ is installed; earlier push notifications cannot be recovered.
   Also filter by milestone, severity and environment; the ☑ 2/5 subtask badge lists an issue's subtasks.
   Milestone and size are editable inline.
   100 issues per page (`?page=2`); changing a filter or sort goes back to page 1.
+- **Date range** (Issues filters) — choose **Created**, **Updated**, **Due**, or **Closed**, then set
+  **From**, **To**, or both. Both dates are inclusive; a missing bound is unrestricted. Dates use
+  the database timezone, consistent with the existing overdue filters. Closed dates only match issues
+  with a closing date, so select Closed or All statuses when looking for completed work.
+  Date ranges work with other filters, pagination and saved views, and remain in the URL
+  (`?date=due&from=2026-11-01&to=2026-11-30`). Invalid dates are ignored; reversed URL bounds are swapped.
 - **Issue** (`/issues/:id`) — description, labels, found-in / fixed-in version, due date, comments, and a
   history of every field change. `Esc` goes back to the list.
   Planning: milestone, size, parent issue (subtasks are one level deep; add them from the parent's page).
@@ -245,6 +280,37 @@ is installed; earlier push notifications cannot be recovered.
 - **Settings** — custom statuses (order, color, closed flag, default), apps (rename, color, archive) and
   milestones (rename, due date, done, delete).
 
+## Resume work
+
+Each issue has **Where I stopped** and **Next action** fields below the description. Record findings,
+attempts, and the first concrete step for your next session. Click **Save note** or press **Ctrl+Enter**
+(**Cmd+Enter** on Mac); Cancel discards the draft, and leaving with unsaved notes asks first. Notes sync
+across devices, are searchable, and their changes appear in the issue history. Today shows the next action,
+or where you stopped if no next action is set. MCP `get_issue` reads the notes; `update_issue` accepts
+`stopped` and `next_action` (empty strings clear them). Each field allows up to 20,000 characters.
+
+## Trash
+
+**Move to Trash** on an issue or a bulk selection keeps the original issues, descriptions, resume notes,
+comments, history, attachments, links, and relations recoverable for **30 days**. Open **Trash** in the
+navigation to preview notes and restore an issue. Trashed issues are excluded from normal lists, search,
+counts, Today, duplicate hints, blocker checks, reminders, and daily summaries.
+
+Deleting a parent also moves its active subtasks. Restoring it restores those subtasks, while subtasks
+deleted separately stay in Trash. Restore a trashed parent before separately restoring one of its children.
+If the parent's recovery period has expired, a younger deleted child can be restored without the parent.
+Restoring preserves status and future reminders, clears expired reminders, and does not add work back to
+Today. MCP also provides `list_trash` (paginated) and `restore_issue`.
+
+The recovery deadline is enforced even when the server has been offline. The hourly cleanup permanently
+removes expired issues in batches and queues their attachment objects for deletion; failed storage cleanup
+is retried. Files stay in storage throughout the recovery period. Issues permanently deleted before this
+feature was installed cannot be recovered through Trash.
+
 ## Tests
 
 `pnpm test` (quick-add parser, app names, filters, Markdown safety), `pnpm check`, `pnpm lint`.
+
+Postgres regression tests for resume notes and Trash are opt-in with
+`BUG_TRACKER_TEST_DATABASE_URL=postgres://… pnpm test`. They create and remove a temporary isolated schema;
+the configured database role needs permission to create schemas. Without that variable they are skipped.

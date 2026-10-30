@@ -1,6 +1,8 @@
 import { error, json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { createIssues, deleteIssues, updateIssue } from '#lib/server/repo.ts';
+import { createIssues, updateIssue } from '#lib/server/repo.ts';
+import { trashIssues } from '#lib/server/trash.ts';
+import { readIssueIds } from '#lib/server/issue-input.ts';
 import { requireUser } from '#lib/server/session.ts';
 import { cleanNewIssues } from '#lib/server/validate.ts';
 import { afterIssueChanged, afterIssuesCreated } from '#lib/server/notify.ts';
@@ -10,7 +12,7 @@ import type { IssuePatch, NewIssue } from '#lib/types.ts';
 export const POST: RequestHandler = async ({ request, locals }) => {
 	const { items } = (await request.json()) as { items: NewIssue[] };
 	const clean = cleanNewIssues(items);
-	if (!clean.length) error(400, 'Nothing to add (each issue needs a title and an app)');
+	if (!clean.length) error(400, 'Nothing to add (each issue needs a title)');
 	const user = requireUser(locals);
 	const created = await createIssues(clean, user.id);
 	afterIssuesCreated([...created.ids, ...created.subtaskIds], user.id);
@@ -29,8 +31,8 @@ export const PATCH: RequestHandler = async ({ request, locals }) => {
 };
 
 /** Bulk delete: { ids: number[] } */
-export const DELETE: RequestHandler = async ({ request }) => {
-	const { ids } = (await request.json()) as { ids: number[] };
-	await deleteIssues(ids);
+export const DELETE: RequestHandler = async ({ request, locals }) => {
+	const user = requireUser(locals);
+	await trashIssues(await readIssueIds(request), user.id);
 	return json({ ok: true });
 };

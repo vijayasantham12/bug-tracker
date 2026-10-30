@@ -31,6 +31,7 @@
 	import Markdown from '#lib/components/Markdown.svelte';
 	import MediaViewer from '#lib/components/MediaViewer.svelte';
 	import TodayToggle from '#lib/components/TodayToggle.svelte';
+	import ResumeNote from '#lib/components/ResumeNote.svelte';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
@@ -116,7 +117,7 @@
 			items: [
 				{
 					title,
-					apps: [issue.appName],
+					apps: issue.appId === null ? [] : [issue.appName],
 					type: 'task',
 					parentId: issue.id,
 					milestone: issue.milestoneName ?? undefined
@@ -246,8 +247,14 @@
 
 	async function remove() {
 		if (menu) menu.open = false;
-		if (!confirm(`Delete #${issue.id}? This cannot be undone.`)) return;
+		if (
+			!confirm(
+				`Move #${issue.id} and its active subtasks to Trash? You can restore them for 30 days.`
+			)
+		)
+			return;
 		await api('DELETE', `/api/issues/${issue.id}`);
+		notify('Moved to Trash · recover within 30 days');
 		goto(nav.listUrl);
 	}
 	let uploading = $state(0);
@@ -395,7 +402,7 @@
 					>
 					<button
 						class="block w-full rounded px-2 py-1 text-left text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
-						onclick={remove}>Delete issue…</button
+						onclick={remove}>Move to Trash…</button
 					>
 				</div>
 			</details>
@@ -434,6 +441,8 @@
 				</div>
 			{/if}
 		</div>
+
+		{#key issue.id}<ResumeNote {issue} />{/key}
 
 		{#snippet heading(label: string)}
 			<h2 class="mb-1.5 text-xs font-medium tracking-wide text-zinc-500 uppercase">{label}</h2>
@@ -837,9 +846,11 @@
 			{@render label('App')}
 			<select
 				class="prop"
-				value={issue.appId}
-				onchange={(e) => save({ appId: Number(e.currentTarget.value) })}
+				value={issue.appId ?? ''}
+				onchange={(e) =>
+					save({ appId: e.currentTarget.value ? Number(e.currentTarget.value) : null })}
 			>
+				<option value="">Inbox (no app)</option>
 				{#each data.apps as a (a.id)}<option value={a.id}>{a.name}</option>{/each}
 			</select>
 
