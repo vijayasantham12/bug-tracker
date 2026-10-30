@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount, tick } from 'svelte';
+	import { onMount, tick, untrack } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { goto } from '$app/navigation';
 	import { api, filesFrom, upload } from '#lib/api.ts';
@@ -38,10 +38,29 @@
 	const issue = $derived(data.issue);
 	const status = $derived(data.statuses.find((s) => s.id === issue.statusId));
 
-	// local drafts, reset whenever the server copy changes
-	let title = $derived(issue.title);
-	let description = $derived(issue.description);
-	let labels = $derived(issue.labels.join(' '));
+	// local drafts. Every save refreshes the whole issue, so a draft only takes the server
+	// copy when that field changed and the draft wasn't edited (or on another issue) —
+	// changing status mid-description must not wipe what you're typing.
+	const serverDrafts = () => ({
+		id: issue.id,
+		title: issue.title,
+		description: issue.description,
+		labels: issue.labels.join(' ')
+	});
+	let previous = untrack(serverDrafts);
+	let title = $state(previous.title);
+	let description = $state(previous.description);
+	let labels = $state(previous.labels);
+	$effect.pre(() => {
+		const incoming = serverDrafts();
+		untrack(() => {
+			const other = incoming.id !== previous.id;
+			if (other || title === previous.title) title = incoming.title;
+			if (other || description === previous.description) description = incoming.description;
+			if (other || labels === previous.labels) labels = incoming.labels;
+			previous = incoming;
+		});
+	});
 	let comment = $state('');
 
 	const save = (patch: IssuePatch) => api('PATCH', `/api/issues/${issue.id}`, patch);
@@ -51,8 +70,9 @@
 	const sent = { title: '', description: '' };
 
 	function saveTitle() {
+		title = title.trim() || title;
 		sent.title = title;
-		if (title.trim() && title !== issue.title) save({ title: title.trim() });
+		if (title.trim() && title !== issue.title) save({ title });
 		else title = issue.title;
 	}
 	function saveDescription() {
@@ -85,9 +105,13 @@
 		if (next.join(' ') !== issue.labels.join(' ')) save({ labels: next });
 	}
 	async function addComment() {
-		if (!comment.trim()) return;
-		await api('POST', `/api/issues/${issue.id}/comments`, { body: comment });
+		const body = comment;
+		if (!body.trim()) return;
+		// clear right away so you can keep typing; put it back if the post fails
 		comment = '';
+		await api('POST', `/api/issues/${issue.id}/comments`, { body }).catch(() => {
+			comment = comment.trim() ? `${body}\n\n${comment}` : body;
+		});
 	}
 	const statusById = $derived(new Map(data.statuses.map((s) => [s.id, s])));
 	const relationLabel = (kind: RelationKind) => RELATION_KINDS.find((k) => k.value === kind)?.label;
@@ -113,6 +137,7 @@
 	async function addSubtask() {
 		const title = newSubtask.trim();
 		if (!title) return;
+		newSubtask = '';
 		await api('POST', '/api/issues', {
 			items: [
 				{
@@ -123,16 +148,21 @@
 					milestone: issue.milestoneName ?? undefined
 				}
 			]
+		}).catch(() => {
+			if (!newSubtask.trim()) newSubtask = title;
 		});
-		newSubtask = '';
 	}
 
 	let newLink = $state({ url: '', title: '' });
 	async function addLink() {
-		if (!newLink.url.trim()) return;
-		await api('POST', `/api/issues/${issue.id}/links`, newLink);
+		const link = newLink;
+		if (!link.url.trim()) return;
 		newLink = { url: '', title: '' };
 		adding = null;
+		await api('POST', `/api/issues/${issue.id}/links`, link).catch(() => {
+			if (!newLink.url.trim()) newLink = link;
+			adding ??= 'link';
+		});
 	}
 	const linkText = (url: string) => {
 		const u = new URL(url);
@@ -144,9 +174,13 @@
 	async function addRelation() {
 		const otherId = issueNumber(relTarget);
 		if (!otherId) return notify('Enter an issue number, e.g. #12', true);
-		await api('POST', `/api/issues/${issue.id}/relations`, { kind: relKind, otherId });
+		const target = relTarget;
 		relTarget = '';
 		adding = null;
+		await api('POST', `/api/issues/${issue.id}/relations`, { kind: relKind, otherId }).catch(() => {
+			if (!relTarget.trim()) relTarget = target;
+			adding ??= 'relation';
+		});
 	}
 
 	function setParent(input: HTMLInputElement) {
