@@ -62,7 +62,7 @@
 {#snippet row(i: Issue, meta: 'status' | 'priority' | 'closed' = 'priority')}
 	{@const st = statusById.get(i.statusId)}
 	<li class="flex items-baseline gap-2 py-1">
-		<span class="w-10 shrink-0 font-mono text-xs text-zinc-400">#{i.id}</span>
+		<span class="w-10 shrink-0 text-xs text-zinc-400">#{i.id}</span>
 		<a href="/issues/{i.id}" class="min-w-0 truncate hover:underline">{i.title}</a>
 		<TodayToggle issueId={i.id} selected={data.todayIds.includes(i.id)} compact />
 		{#if i.isBlocked}<span class="shrink-0 text-xs text-red-500">⛔</span>{/if}
@@ -153,7 +153,7 @@
 				<ul class="divide-y divide-zinc-100 dark:divide-zinc-900">
 					{#each data.quickWins as i (i.id)}
 						<li class="flex items-baseline gap-2 py-1">
-							<span class="font-mono text-xs text-zinc-400">#{i.id}</span>
+							<span class="text-xs text-zinc-400">#{i.id}</span>
 							<a href="/issues/{i.id}" class="min-w-0 truncate hover:underline">{i.title}</a>
 							<TodayToggle issueId={i.id} selected={data.todayIds.includes(i.id)} compact />
 							<span class="ml-auto shrink-0 text-xs text-zinc-400 uppercase">{i.size}</span>
@@ -245,7 +245,7 @@
 			<ul class="divide-y divide-zinc-100 dark:divide-zinc-900">
 				{#each data.shipped as i (i.id)}
 					<li class="flex items-baseline gap-2 py-1">
-						<span class="font-mono text-xs text-zinc-400">#{i.id}</span>
+						<span class="text-xs text-zinc-400">#{i.id}</span>
 						<span class="w-14 shrink-0 text-xs {TYPE_CLASS[i.type]}">{TYPE_LABEL[i.type]}</span>
 						<a href="/issues/{i.id}" class="min-w-0 truncate hover:underline">{i.title}</a>
 						<span class="ml-auto shrink-0 text-xs text-zinc-500">{i.appName}</span>

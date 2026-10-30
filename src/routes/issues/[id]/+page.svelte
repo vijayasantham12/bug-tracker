@@ -217,6 +217,18 @@
 			() => notify('Could not copy the link', true)
 		);
 	}
+	let idCopied = $state(false);
+	function copyId() {
+		if (menu) menu.open = false;
+		navigator.clipboard?.writeText(`#${issue.id}`).then(
+			() => {
+				notify(`Copied #${issue.id}`);
+				idCopied = true;
+				setTimeout(() => (idCopied = false), 1500);
+			},
+			() => notify('Could not copy the ID', true)
+		);
+	}
 
 	// "remind me": presets are local times; the server sends a push notification then
 	let pickingReminder = $state(false);
@@ -257,6 +269,13 @@
 		notify('Moved to Trash · recover within 30 days');
 		goto(nav.listUrl);
 	}
+	let resumeOpen = $state(false);
+	// Collapse the resume note when navigating to another issue (not on every data refresh).
+	const issueId = $derived(issue.id);
+	$effect(() => {
+		void issueId;
+		resumeOpen = false;
+	});
 	let uploading = $state(0);
 	let dragging = $state(false);
 	let picker = $state<HTMLInputElement>();
@@ -300,14 +319,109 @@
 		};
 	}
 
+	// single-key shortcuts; `?` lists them. Elements tagged data-key="…" are focused,
+	// opened (selects) or clicked (buttons). Runs before the layout's n/m handler.
+	let showShortcuts = $state(false);
+	const SHORTCUTS: [string, string][] = [
+		['e', 'Edit description'],
+		['E', 'Edit title'],
+		['r', 'Resume note'],
+		['c', 'Write a comment'],
+		['s', 'Status'],
+		['p', 'Priority'],
+		['t', 'Type'],
+		['m', 'Milestone'],
+		['d', 'Due date'],
+		['l', 'Labels'],
+		['S', 'Add subtask'],
+		['L', 'Add link'],
+		['R', 'Add related issue'],
+		['a', 'Attach files'],
+		['*', 'Toggle Today'],
+		['i', 'Copy issue ID'],
+		['y', 'Copy link'],
+		['n', 'New issue'],
+		['Ctrl+K', 'Search / commands'],
+		['?', 'Show shortcuts'],
+		['Esc', 'Back to issues']
+	];
+	function runShortcut(key: string): boolean {
+		switch (key) {
+			case 'e':
+				editDescription();
+				return true;
+			case 'r':
+				resumeOpen = true;
+				document.getElementById('resume-stopped')?.focus();
+				return true;
+			case 'S':
+				if (issue.parentId) return false;
+				adding = 'subtask';
+				return true;
+			case 'L':
+				adding = 'link';
+				return true;
+			case 'R':
+				adding = 'relation';
+				return true;
+			case 'a':
+				picker?.click();
+				return !!picker;
+			case 'i':
+				copyId();
+				return true;
+			case 'y':
+				copyLink();
+				return true;
+			case '?':
+				showShortcuts = true;
+				return true;
+		}
+		const el = document.querySelector<HTMLElement>(`[data-key="${CSS.escape(key)}"]`);
+		if (!el || (el as HTMLInputElement).disabled) return false;
+		if (el instanceof HTMLButtonElement) {
+			el.click();
+			return true;
+		}
+		el.focus();
+		if (el instanceof HTMLSelectElement) {
+			try {
+				el.showPicker();
+			} catch {
+				// not supported: the focused select still takes arrow keys
+			}
+		} else if (el instanceof HTMLInputElement && el.type === 'text') {
+			el.select();
+		}
+		return true;
+	}
+
 	onMount(() => {
 		const onKey = (e: KeyboardEvent) => {
-			if ((e.target as HTMLElement).closest('input, textarea, select')) return;
-			if (e.key === 'Escape') goto(nav.listUrl);
-			if (e.key === 'e' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+			if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+			// A focused dropdown keeps focus after its picker closes; Esc or any shortcut key
+			// releases it instead of type-ahead silently changing the value.
+			if (e.target instanceof HTMLSelectElement && e.target.closest('aside')) {
+				if (e.key !== 'Escape' && !SHORTCUTS.some(([k]) => k === e.key)) return;
 				e.preventDefault();
-				editDescription();
+				e.target.blur();
+				if (e.key !== 'Escape') runShortcut(e.key);
+				return;
 			}
+			if ((e.target as HTMLElement).closest('input, textarea, select, [contenteditable]')) return;
+			if (showShortcuts) {
+				if (e.key === 'Escape' || e.key === '?') {
+					e.preventDefault();
+					showShortcuts = false;
+				}
+				return;
+			}
+			if (e.key === 'Escape') {
+				if (menu?.open) menu.open = false;
+				else goto(nav.listUrl);
+				return;
+			}
+			if (runShortcut(e.key)) e.preventDefault();
 		};
 		// paste a screenshot anywhere on the page to attach it
 		const onPaste = (e: ClipboardEvent) => {
@@ -325,11 +439,17 @@
 		} catch {
 			// storage blocked: show everything
 		}
+		// picking a value from a dropdown hands focus back to the page
+		const onChange = (e: Event) => {
+			if (e.target instanceof HTMLSelectElement && e.target.closest('aside')) e.target.blur();
+		};
 		window.addEventListener('keydown', onKey);
+		window.addEventListener('change', onChange);
 		window.addEventListener('paste', onPaste);
 		window.addEventListener('click', onClick);
 		return () => {
 			window.removeEventListener('keydown', onKey);
+			window.removeEventListener('change', onChange);
 			window.removeEventListener('paste', onPaste);
 			window.removeEventListener('click', onClick);
 		};
@@ -359,14 +479,54 @@
 	</div>
 {/if}
 
+{#if showShortcuts}
+	<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+	<div
+		class="fixed inset-0 z-40 flex items-center justify-center bg-black/30"
+		onclick={() => (showShortcuts = false)}
+	>
+		<!-- svelte-ignore a11y_click_events_have_key_events -->
+		<div
+			class="w-80 rounded-lg border border-zinc-200 bg-white p-3 shadow-xl dark:border-zinc-800 dark:bg-zinc-950"
+			role="dialog"
+			aria-modal="true"
+			aria-label="Keyboard shortcuts"
+			tabindex="-1"
+			onclick={(e) => e.stopPropagation()}
+		>
+			<h2 class="mb-2 text-xs font-medium tracking-wide text-zinc-500 uppercase">
+				Keyboard shortcuts
+			</h2>
+			<dl class="grid grid-cols-[4.5rem_1fr] gap-x-2 gap-y-1 text-sm">
+				{#each SHORTCUTS as [key, what] (key)}
+					<dt>
+						<span class="kbd"
+							>{key.length === 1 && key !== key.toLowerCase() ? `Shift+${key}` : key}</span
+						>
+					</dt>
+					<dd class="text-zinc-600 dark:text-zinc-400">{what}</dd>
+				{/each}
+			</dl>
+			<p class="mt-2 text-xs text-zinc-400">
+				In text boxes: <span class="kbd">Ctrl+Enter</span> save · <span class="kbd">Esc</span> close
+			</p>
+		</div>
+	</div>
+{/if}
+
 <svelte:head><title>#{issue.id} {issue.title}</title></svelte:head>
 
 <div class="mb-3 flex items-center gap-3 text-zinc-500">
 	<a href={nav.listUrl} class="hover:underline">← Issues</a>
-	<span class="text-xs text-zinc-400"><span class="kbd">Esc</span> back</span>
+	<span class="text-xs text-zinc-400"
+		><span class="kbd">Esc</span> back ·
+		<button class="hover:underline" onclick={() => (showShortcuts = true)}
+			><span class="kbd">?</span> shortcuts</button
+		></span
+	>
 	{#if !status?.isClosed}
 		<div class="ml-auto">
-			<TodayToggle issueId={issue.id} selected={data.todayIds.includes(issue.id)} />
+			<TodayToggle issueId={issue.id} selected={data.todayIds.includes(issue.id)} shortcut="*" />
 		</div>
 	{/if}
 </div>
@@ -377,12 +537,41 @@
 			<a
 				href="/issues/{data.parent.id}"
 				class="mb-1 inline-block text-xs text-zinc-500 hover:underline"
-				>↳ Subtask of <span class="font-mono">#{data.parent.id}</span> {data.parent.title}</a
+				>↳ Subtask of <span class="font-sans">#{data.parent.id}</span> {data.parent.title}</a
 			>
 		{/if}
 		<div class="flex items-baseline gap-2">
-			<span class="font-mono text-zinc-400">#{issue.id}</span>
+			<button
+				type="button"
+				class="group/id flex shrink-0 items-center gap-1 self-center rounded px-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
+				title="Copy #{issue.id} (i)"
+				aria-label="Copy issue ID #{issue.id}"
+				aria-keyshortcuts="i"
+				onclick={copyId}
+			>
+				#{issue.id}
+				<svg
+					width="13"
+					height="13"
+					viewBox="0 0 24 24"
+					fill="none"
+					stroke="currentColor"
+					stroke-width="2"
+					stroke-linecap="round"
+					stroke-linejoin="round"
+					aria-hidden="true"
+					class="opacity-50 group-hover/id:opacity-100"
+				>
+					{#if idCopied}
+						<path d="M20 6 9 17l-5-5" />
+					{:else}
+						<rect x="9" y="9" width="12" height="12" rx="2" />
+						<path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
+					{/if}
+				</svg>
+			</button>
 			<input
+				data-key="E"
 				bind:value={title}
 				onblur={saveTitle}
 				onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
@@ -398,7 +587,11 @@
 				>
 					<button
 						class="block w-full rounded px-2 py-1 text-left hover:bg-zinc-100 dark:hover:bg-zinc-900"
-						onclick={copyLink}>Copy link</button
+						onclick={copyId}>Copy ID <span class="kbd float-right">i</span></button
+					>
+					<button
+						class="block w-full rounded px-2 py-1 text-left hover:bg-zinc-100 dark:hover:bg-zinc-900"
+						onclick={copyLink}>Copy link <span class="kbd float-right">y</span></button
 					>
 					<button
 						class="block w-full rounded px-2 py-1 text-left text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950"
@@ -418,7 +611,7 @@
 					onkeydown={ctrlEnter(() => descriptionInput?.blur())}
 					rows="10"
 					placeholder="Description, steps to reproduce, expected vs actual… (Markdown)"
-					class="input w-full resize-y font-mono text-[13.5px] leading-relaxed"></textarea>
+					class="input w-full resize-y text-[13.5px] leading-relaxed"></textarea>
 				<p class="mt-0.5 text-xs text-zinc-400">
 					{description !== issue.description ? 'Unsaved — saves on blur or Ctrl+Enter' : 'Saved'}
 					· Markdown supported
@@ -442,13 +635,21 @@
 			{/if}
 		</div>
 
-		{#key issue.id}<ResumeNote {issue} />{/key}
+		{#key issue.id}<ResumeNote {issue} bind:open={resumeOpen} />{/key}
 
 		{#snippet heading(label: string)}
 			<h2 class="mb-1.5 text-xs font-medium tracking-wide text-zinc-500 uppercase">{label}</h2>
 		{/snippet}
-		{#snippet addButton(label: string, active: boolean, onclick: () => void, disabled = false)}
+		{#snippet addButton(
+			label: string,
+			active: boolean,
+			onclick: () => void,
+			disabled = false,
+			key = ''
+		)}
 			<button
+				title={key ? `Shortcut: ${key}` : undefined}
+				aria-keyshortcuts={key || undefined}
 				class="rounded px-1.5 py-0.5 hover:bg-zinc-100 hover:text-zinc-800 disabled:opacity-50 dark:hover:bg-zinc-900 dark:hover:text-zinc-200 {active
 					? 'bg-zinc-100 text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200'
 					: ''}"
@@ -459,16 +660,38 @@
 
 		<div class="mt-3 flex flex-wrap items-center gap-1 text-xs text-zinc-500">
 			{#if !issue.parentId}
-				{@render addButton('+ Subtask', adding === 'subtask', () => toggleAdding('subtask'))}
+				{@render addButton(
+					'+ Subtask',
+					adding === 'subtask',
+					() => toggleAdding('subtask'),
+					false,
+					'Shift+S'
+				)}
 			{/if}
-			{@render addButton('+ Link', adding === 'link', () => toggleAdding('link'))}
-			{@render addButton('+ Related', adding === 'relation', () => toggleAdding('relation'))}
+			{@render addButton('+ Link', adding === 'link', () => toggleAdding('link'), false, 'Shift+L')}
+			{@render addButton(
+				'+ Related',
+				adding === 'relation',
+				() => toggleAdding('relation'),
+				false,
+				'Shift+R'
+			)}
+			{#if !issue.stopped.trim() && !issue.nextAction.trim()}
+				{@render addButton(
+					'+ Resume note',
+					resumeOpen,
+					() => (resumeOpen = !resumeOpen),
+					false,
+					'r'
+				)}
+			{/if}
 			{#if data.attachmentsEnabled}
 				{@render addButton(
 					uploading ? `Uploading ${uploading}…` : '+ Attach',
 					false,
 					() => picker?.click(),
-					uploading > 0
+					uploading > 0,
+					'a'
 				)}
 				<span class="ml-1 text-zinc-400">or paste / drop files</span>
 				<input
@@ -574,7 +797,7 @@
 								href="/issues/{t.id}"
 								class="min-w-0 truncate hover:underline {t.isClosed
 									? 'text-zinc-400 line-through decoration-zinc-300 dark:decoration-zinc-700'
-									: ''}"><span class="font-mono text-xs text-zinc-400">#{t.id}</span> {t.title}</a
+									: ''}"><span class="text-xs text-zinc-400">#{t.id}</span> {t.title}</a
 							>
 							<span class="ml-auto shrink-0 text-xs" style="color:{st?.color}">{st?.name}</span>
 						</li>
@@ -619,8 +842,7 @@
 							href="/issues/{r.otherId}"
 							class="min-w-0 truncate hover:underline {r.otherClosed
 								? 'text-zinc-400 line-through decoration-zinc-300 dark:decoration-zinc-700'
-								: ''}"
-							><span class="font-mono text-xs text-zinc-400">#{r.otherId}</span> {r.otherTitle}</a
+								: ''}"><span class="text-xs text-zinc-400">#{r.otherId}</span> {r.otherTitle}</a
 						>
 						<button
 							class="ml-auto shrink-0 text-xs text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-red-500"
@@ -671,7 +893,7 @@
 							{:else}
 								<a href="/attachments/{f.id}" target="_blank" rel="noopener" title={f.filename}>
 									<div
-										class="flex h-24 items-center justify-center rounded-t bg-zinc-50 font-mono text-xs text-zinc-400 uppercase dark:bg-zinc-900"
+										class="flex h-24 items-center justify-center rounded-t bg-zinc-50 text-xs text-zinc-400 uppercase dark:bg-zinc-900"
 									>
 										{f.filename.split('.').pop()?.slice(0, 6) || 'file'}
 									</div>
@@ -796,10 +1018,11 @@
 
 		<div class="mt-3">
 			<textarea
+				data-key="c"
 				bind:value={comment}
 				onkeydown={ctrlEnter(addComment)}
 				rows="3"
-				placeholder="Add a note… (Markdown, Ctrl+Enter)"
+				placeholder="Add a note… (Markdown, Ctrl+Enter to send · c to focus)"
 				class="input w-full"></textarea>
 			<button class="btn mt-1" disabled={!comment.trim()} onclick={addComment}>Comment</button>
 		</div>
@@ -815,6 +1038,7 @@
 		<div class="grid grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-x-1">
 			{@render label('Status')}
 			<select
+				data-key="s"
 				class="prop"
 				style="color:{status?.color}"
 				value={issue.statusId}
@@ -826,6 +1050,7 @@
 			</select>
 			{@render label('Priority')}
 			<select
+				data-key="p"
 				class="prop {PRIORITY_CLASS[issue.priority]}"
 				value={issue.priority}
 				onchange={(e) => save({ priority: Number(e.currentTarget.value) })}
@@ -836,6 +1061,7 @@
 			</select>
 			{@render label('Type')}
 			<select
+				data-key="t"
 				class="prop {TYPE_CLASS[issue.type]}"
 				value={issue.type}
 				onchange={(e) => save({ type: e.currentTarget.value as never })}
@@ -858,6 +1084,7 @@
 
 			{@render label('Milestone')}
 			<select
+				data-key="m"
 				class="prop {faint(!issue.milestoneId)}"
 				value={issue.milestoneId ?? ''}
 				onchange={(e) => chooseMilestone(e.currentTarget)}
@@ -880,6 +1107,7 @@
 			{@render label('Due')}
 			<!-- empty: a text field showing "—" that turns into a date picker on focus -->
 			<input
+				data-key="d"
 				type={issue.dueDate ? 'date' : 'text'}
 				class="prop"
 				value={issue.dueDate ?? ''}
@@ -1008,6 +1236,7 @@
 
 			{@render label('Labels')}
 			<input
+				data-key="l"
 				class="prop"
 				bind:value={labels}
 				onblur={saveLabels}

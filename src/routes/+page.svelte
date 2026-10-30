@@ -718,7 +718,7 @@
 								selected.has(issue.id) ? selected.delete(issue.id) : selected.add(issue.id)}
 						/>
 					</td>
-					<td class="px-2 py-1.5 font-mono text-xs text-zinc-400">
+					<td class="px-2 py-1.5 text-xs text-zinc-400">
 						<a href="/issues/{issue.id}" class="hover:underline">#{issue.id}</a>
 					</td>
 					<td class="px-2 py-1.5">
@@ -728,7 +728,7 @@
 						{#if issue.parentId}
 							<a
 								href="/issues/{issue.parentId}"
-								class="mr-1 font-mono text-xs text-zinc-400 hover:underline"
+								class="mr-1 text-xs text-zinc-400 hover:underline"
 								title="Subtask of #{issue.parentId}">↳#{issue.parentId}</a
 							>
 						{/if}

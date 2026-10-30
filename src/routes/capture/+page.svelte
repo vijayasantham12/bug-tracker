@@ -202,8 +202,7 @@
 				? ` + ${result.subtasks} subtask${result.subtasks === 1 ? '' : 's'}`
 				: ''}:</span
 		>
-		{#each result.ids as id (id)}<a href="/issues/{id}" class="font-mono hover:underline">#{id}</a
-			>{/each}
+		{#each result.ids as id (id)}<a href="/issues/{id}" class="hover:underline">#{id}</a>{/each}
 		{#if result.label}
 			<a
 				href="/?label={encodeURIComponent(result.label)}&status=all"
@@ -289,7 +288,7 @@ Tab indents · Enter continues the list · Ctrl+Enter adds all`}
 						<div class="mt-0.5 text-xs text-amber-700 dark:text-amber-400">
 							≈ similar open
 							<a href="/issues/{h.id}" target="_blank" rel="noopener" class="hover:underline"
-								><span class="font-mono">#{h.id}</span> {h.title}</a
+								><span class="font-sans">#{h.id}</span> {h.title}</a
 							>
 							<span class="text-zinc-400">({h.statusName})</span>
 						</div>

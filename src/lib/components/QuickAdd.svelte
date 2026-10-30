@@ -257,7 +257,7 @@
 					<li class="pl-4 text-amber-700 dark:text-amber-400">
 						≈ similar open issue
 						<a href="/issues/{h.id}" target="_blank" rel="noopener" class="hover:underline"
-							><span class="font-mono">#{h.id}</span> {h.title}</a
+							><span class="font-sans">#{h.id}</span> {h.title}</a
 						>
 						<span class="text-zinc-400">({h.statusName})</span>
 					</li>

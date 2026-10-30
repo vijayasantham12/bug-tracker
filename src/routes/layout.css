@@ -1,8 +1,10 @@
 @import 'tailwindcss';
-@import '@fontsource-variable/inter';
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
 
 @theme {
-	--font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
+	--font-sans: 'Geist Variable', ui-sans-serif, system-ui, sans-serif;
+	--font-mono: 'Geist Mono Variable', ui-monospace, monospace;
 }
 
 @layer base {
@@ -11,8 +13,6 @@
 	}
 	body {
 		@apply bg-white font-sans text-[14px] text-zinc-800 antialiased dark:bg-zinc-950 dark:text-zinc-200;
-		/* Inter alternates: open 4, 6, 9 and single-storey a */
-		font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
 	}
 	button {
 		cursor: pointer;
@@ -52,7 +52,7 @@
 		@apply inline-flex items-center gap-1 rounded-full border border-zinc-200 px-2 py-0.5 text-xs dark:border-zinc-800;
 	}
 	.kbd {
-		@apply rounded border border-zinc-300 px-1 font-mono text-[11px] text-zinc-500 dark:border-zinc-700;
+		@apply rounded border border-zinc-300 px-1 text-[11px] text-zinc-500 dark:border-zinc-700;
 	}
 }
 
@@ -102,7 +102,7 @@
 			@apply rounded bg-zinc-100 px-1 py-px font-mono text-[0.9em] dark:bg-zinc-800;
 		}
 		& pre {
-			@apply overflow-x-auto rounded bg-zinc-100 p-2.5 text-[13px] leading-normal dark:bg-zinc-900;
+			@apply overflow-x-auto rounded bg-zinc-100 p-2.5 font-mono text-[13px] leading-normal dark:bg-zinc-900;
 		}
 		& pre code {
 			@apply bg-transparent p-0 text-inherit;

@@ -149,7 +149,7 @@
 							</p>
 						{/if}
 						<div class="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-zinc-500">
-							<span class="font-mono">#{issue.id}</span>
+							<span class="font-sans">#{issue.id}</span>
 							<span class="inline-flex items-center gap-1"
 								><span class="size-1.5 rounded-full" style="background:{issue.appColor}"
 								></span>{issue.appName}</span
