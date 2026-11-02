@@ -1,4 +1,6 @@
 <script lang="ts">
+	import X from '~icons/octicon/x-16';
+	import Milestone from '~icons/octicon/milestone-16';
 	import { untrack } from 'svelte';
 	import HillPlot from '#lib/components/HillPlot.svelte';
 	import { HILL_COLORS, HILL_SCOPE_LIMIT, hillPhase } from '#lib/hill.ts';
@@ -104,7 +106,9 @@
 <div class="mt-3 mb-5 flex flex-wrap items-start justify-between gap-3">
 	<div>
 		<div class="flex flex-wrap items-center gap-2">
-			<h1 class="text-xl font-semibold">{data.milestone.name}</h1>
+			<h1 class="text-xl font-semibold">
+				<Milestone aria-hidden="true" class="icon mr-1 text-zinc-400" />{data.milestone.name}
+			</h1>
 			{#if data.milestone.done}<span class="chip text-green-600">Completed</span>{/if}
 		</div>
 		<p class="mt-1 text-sm text-zinc-500">
@@ -191,7 +195,7 @@
 						class="col-start-3 row-start-1 rounded px-2 py-1 text-zinc-400 hover:bg-zinc-100 hover:text-red-500 sm:col-start-auto sm:row-start-auto dark:hover:bg-zinc-900"
 						aria-label="Remove {scope.name}"
 						disabled={saving}
-						onclick={() => remove(scope.id)}>✕</button
+						onclick={() => remove(scope.id)}><X aria-hidden="true" /></button
 					>
 				</div>
 			{/each}

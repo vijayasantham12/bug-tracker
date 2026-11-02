@@ -1,4 +1,22 @@
 <script lang="ts">
+	import X from '~icons/octicon/x-16';
+	import TriangleDown from '~icons/octicon/triangle-down-16';
+	import SortAsc from '~icons/octicon/sort-asc-16';
+	import SortDesc from '~icons/octicon/sort-desc-16';
+	import PriorityIcon from '#lib/components/PriorityIcon.svelte';
+	import StatusIcon from '#lib/components/StatusIcon.svelte';
+	import IssueTrackedBy from '~icons/octicon/issue-tracked-by-16';
+	import Inbox from '~icons/octicon/inbox-16';
+	import Bell from '~icons/octicon/bell-16';
+	import Sync from '~icons/octicon/sync-16';
+	import Blocked from '~icons/octicon/blocked-16';
+	import Comment from '~icons/octicon/comment-16';
+	import Paperclip from '~icons/octicon/paperclip-16';
+	import Calendar from '~icons/octicon/calendar-16';
+	import Tasklist from '~icons/octicon/tasklist-16';
+	import StarFill from '~icons/octicon/star-fill-16';
+	import Bookmark from '~icons/octicon/bookmark-16';
+	import TypeIcon from '#lib/components/TypeIcon.svelte';
 	import { onMount } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { goto } from '$app/navigation';
@@ -273,7 +291,7 @@
 
 {#if filters.inbox}
 	<div class="mb-3">
-		<h1 class="font-semibold">Inbox</h1>
+		<h1 class="font-semibold"><Inbox aria-hidden="true" class="icon mr-1 text-zinc-400" />Inbox</h1>
 		<p class="mt-1 text-sm text-zinc-500">
 			Capture now, organize later. Move an issue to an app when you're ready.
 		</p>
@@ -282,7 +300,7 @@
 
 <div class="mb-2 flex justify-end">
 	<a href="/dashboard#today" class="text-xs text-amber-700 hover:underline dark:text-amber-400">
-		★ Today · {data.todayIds.length} →
+		<StarFill aria-hidden="true" /> Today · {data.todayIds.length} →
 	</a>
 </div>
 
@@ -305,12 +323,12 @@
 					? 'border-zinc-900 bg-zinc-900 text-white dark:border-zinc-100 dark:bg-zinc-100 dark:text-zinc-900'
 					: 'hover:bg-zinc-100 dark:hover:bg-zinc-900'}"
 			>
-				<a href="/{v.query}">★ {v.name}</a>
+				<a href="/{v.query}"><Bookmark aria-hidden="true" /> {v.name}</a>
 				{#if on}
 					<button
 						class="opacity-60 hover:opacity-100"
 						title="Delete this view"
-						onclick={() => deleteView(v.id, v.name)}>✕</button
+						onclick={() => deleteView(v.id, v.name)}><X aria-hidden="true" /></button
 					>
 				{/if}
 			</span>
@@ -392,7 +410,8 @@
 				)
 					? 'bg-zinc-200 dark:bg-zinc-800'
 					: 'text-zinc-500'}"
-				onclick={() => setFilters({ types: toggle(filters.types, t) })}>{TYPE_LABEL[t]}</button
+				onclick={() => setFilters({ types: toggle(filters.types, t) })}
+				><TypeIcon type={t} class="mr-1 {TYPE_CLASS[t]}" />{TYPE_LABEL[t]}</button
 			>
 		{/each}
 	</div>
@@ -510,7 +529,7 @@
 		<button
 			class="chip border-zinc-900 dark:border-zinc-100"
 			title="Remove this filter"
-			onclick={() => setFilters(clear)}>{text} ✕</button
+			onclick={() => setFilters(clear)}>{text} <X aria-hidden="true" /></button
 		>
 	{/snippet}
 	{#if filters.sizes.length}
@@ -527,7 +546,8 @@
 		<button
 			class="chip border-zinc-900 dark:border-zinc-100"
 			title="Show all issues"
-			onclick={() => setFilters({ parent: null })}>Subtasks of #{filters.parent} ✕</button
+			onclick={() => setFilters({ parent: null })}
+			>Subtasks of #{filters.parent} <X aria-hidden="true" /></button
 		>
 	{/if}
 	{#if isFiltered}
@@ -547,7 +567,7 @@
 	<details class="relative" bind:this={columnsMenu}>
 		<summary
 			class="cursor-pointer list-none rounded px-1.5 py-0.5 text-zinc-500 select-none hover:bg-zinc-100 dark:hover:bg-zinc-900"
-			title="Show or hide columns">Columns ▾</summary
+			title="Show or hide columns">Columns <TriangleDown aria-hidden="true" /></summary
 		>
 		<div
 			class="absolute right-0 z-20 mt-1 w-36 rounded border border-zinc-200 bg-white p-1.5 shadow-md dark:border-zinc-800 dark:bg-zinc-950"
@@ -651,7 +671,13 @@
 {#snippet th(label: string, s: Sort, cls = '')}
 	<th class="px-2 py-1.5 font-medium {cls}">
 		<button class="hover:text-zinc-900 dark:hover:text-white" onclick={() => sortBy(s)}>
-			{label}{filters.sort === s ? (filters.dir === 'asc' ? ' ↑' : ' ↓') : ''}
+			{label}{#if filters.sort === s}
+				{#if filters.dir === 'asc'}<SortAsc
+						aria-hidden="true"
+						class="icon ml-0.5"
+					/>{:else}<SortDesc aria-hidden="true" class="icon ml-0.5" />{/if}
+				<span class="sr-only">{filters.dir === 'asc' ? '(ascending)' : '(descending)'}</span>
+			{/if}
 		</button>
 	</th>
 {/snippet}
@@ -710,7 +736,8 @@
 							<a
 								href="/issues/{issue.parentId}"
 								class="mr-1 text-xs text-zinc-400 hover:underline"
-								title="Subtask of #{issue.parentId}">↳#{issue.parentId}</a
+								title="Subtask of #{issue.parentId}"
+								><IssueTrackedBy aria-hidden="true" />#{issue.parentId}</a
 							>
 						{/if}
 						<a
@@ -724,15 +751,17 @@
 						{#if issue.remindAt}
 							<span
 								class="ml-1 text-xs text-zinc-400"
-								title="Reminder {issue.remindAt.toLocaleString()}">🔔</span
+								title="Reminder {issue.remindAt.toLocaleString()}"><Bell aria-hidden="true" /></span
 							>
 						{/if}
 						{#if issue.repeat}
-							<span class="ml-1 text-xs text-zinc-400" title="Repeats {issue.repeat}">↻</span>
+							<span class="ml-1 text-xs text-zinc-400" title="Repeats {issue.repeat}"
+								><Sync aria-hidden="true" /></span
+							>
 						{/if}
 						{#if issue.isBlocked && !status?.isClosed}
 							<span class="ml-1 text-xs text-red-500" title="Blocked by an open issue"
-								>⛔ blocked</span
+								><Blocked aria-hidden="true" /> blocked</span
 							>
 						{/if}
 						{#if issue.type === 'bug' && issue.severity}
@@ -758,7 +787,7 @@
 									: 'text-zinc-400'}"
 								title="Subtasks done — click to list them"
 								onclick={() => setFilters({ parent: issue.id, status: 'all' })}
-								>☑ {issue.subtaskDone}/{issue.subtaskCount}</button
+								><Tasklist aria-hidden="true" /> {issue.subtaskDone}/{issue.subtaskCount}</button
 							>
 						{/if}
 						{#each issue.labels as l (l)}
@@ -768,17 +797,17 @@
 							>
 						{/each}
 						{#if issue.commentCount}<span class="ml-1 text-xs text-zinc-400" title="Comments"
-								>💬{issue.commentCount}</span
+								><Comment aria-hidden="true" /> {issue.commentCount}</span
 							>{/if}
 						{#if issue.attachmentCount}<span class="ml-1 text-xs text-zinc-400" title="Attachments"
-								>📎{issue.attachmentCount}</span
+								><Paperclip aria-hidden="true" /> {issue.attachmentCount}</span
 							>{/if}
 						{#if issue.dueDate}
 							<span
 								class="ml-1 text-xs {issue.dueDate < today && !status?.isClosed
 									? 'text-red-500'
 									: 'text-zinc-400'}"
-								title="Due">⏰ {issue.dueDate}</span
+								title="Due"><Calendar aria-hidden="true" /> {issue.dueDate}</span
 							>
 						{/if}
 					</td>
@@ -805,7 +834,8 @@
 							</button>
 						{/if}
 					</td>
-					<td class="px-2 py-1.5">
+					<td class="px-2 py-1.5 whitespace-nowrap">
+						<TypeIcon type={issue.type} class="mr-0.5 {TYPE_CLASS[issue.type]}" />
 						<select
 							class="cell-select {TYPE_CLASS[issue.type]}"
 							value={issue.type}
@@ -815,7 +845,8 @@
 								>{/each}
 						</select>
 					</td>
-					<td class="px-2 py-1.5">
+					<td class="px-2 py-1.5 whitespace-nowrap">
+						<StatusIcon {status} class="mr-0.5" />
 						<select
 							class="cell-select"
 							style="color:{status?.color}"
@@ -827,7 +858,8 @@
 								>{/each}
 						</select>
 					</td>
-					<td class="px-2 py-1.5">
+					<td class="px-2 py-1.5 whitespace-nowrap">
+						<PriorityIcon priority={issue.priority} class="mr-0.5" />
 						<select
 							class="cell-select {PRIORITY_CLASS[issue.priority]}"
 							value={issue.priority}

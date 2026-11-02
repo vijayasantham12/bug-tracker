@@ -1,4 +1,7 @@
 <script lang="ts">
+	import StatusIcon from '#lib/components/StatusIcon.svelte';
+	import Milestone from '~icons/octicon/milestone-16';
+	import Blocked from '~icons/octicon/blocked-16';
 	import TrendChart from '#lib/components/TrendChart.svelte';
 	import TodayList from '#lib/components/TodayList.svelte';
 	import TodayToggle from '#lib/components/TodayToggle.svelte';
@@ -62,10 +65,13 @@
 {#snippet row(i: Issue, meta: 'status' | 'priority' | 'closed' = 'priority')}
 	{@const st = statusById.get(i.statusId)}
 	<li class="flex items-baseline gap-2 py-1">
+		<StatusIcon status={st} class="shrink-0 self-center" />
 		<span class="w-10 shrink-0 text-xs text-zinc-400">#{i.id}</span>
 		<a href="/issues/{i.id}" class="min-w-0 truncate hover:underline">{i.title}</a>
 		<TodayToggle issueId={i.id} selected={data.todayIds.includes(i.id)} compact />
-		{#if i.isBlocked}<span class="shrink-0 text-xs text-red-500">⛔</span>{/if}
+		{#if i.isBlocked}<span class="shrink-0 text-xs text-red-500" title="Blocked by an open issue"
+				><Blocked aria-label="Blocked" role="img" /></span
+			>{/if}
 		<span class="ml-auto flex shrink-0 items-baseline gap-2 text-xs">
 			<span class="flex items-center gap-1 text-zinc-500"
 				><span class="size-1.5 rounded-full" style="background:{i.appColor}"
@@ -174,7 +180,9 @@
 		{@const left = next.total - next.done}
 		{@const late = !!next.dueDate && dueText(next.dueDate).endsWith('late') && left > 0}
 		<div class="mb-2 flex flex-wrap items-baseline gap-x-2">
-			<h2 class="text-xs font-medium tracking-wide text-zinc-500 uppercase">Next milestone</h2>
+			<h2 class="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+				<Milestone aria-hidden="true" class="icon mr-0.5" />Next milestone
+			</h2>
 			<a href="/milestones/{next.id}" class="font-semibold hover:underline">{next.name}</a>
 			<a href="/milestones/{next.id}" class="text-xs text-zinc-500 hover:underline">Hill Chart →</a>
 			{#if next.dueDate}<span class="text-xs {late ? 'text-red-500' : 'text-zinc-500'}"

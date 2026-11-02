@@ -1,4 +1,6 @@
 <script lang="ts">
+	import X from '~icons/octicon/x-16';
+	import Paperclip from '~icons/octicon/paperclip-16';
 	import { onMount } from 'svelte';
 	import { parseQuickAdd } from '#lib/quickadd.ts';
 	import { api, filesFrom, upload } from '#lib/api.ts';
@@ -214,9 +216,13 @@
 		>
 			{#each files as f, i (i)}
 				<li class="chip">
-					📎 {f.name} <span class="text-zinc-400">{fileSize(f.size)}</span>
-					<button class="text-zinc-400 hover:text-red-500" onclick={() => files.splice(i, 1)}
-						>✕</button
+					<Paperclip aria-hidden="true" />
+					{f.name} <span class="text-zinc-400">{fileSize(f.size)}</span>
+					<button
+						class="text-zinc-400 hover:text-red-500"
+						aria-label="Remove {f.name}"
+						title="Remove"
+						onclick={() => files.splice(i, 1)}><X aria-hidden="true" /></button
 					>
 				</li>
 			{/each}

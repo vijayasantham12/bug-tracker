@@ -1,6 +1,7 @@
 import { error } from '@sveltejs/kit';
 import { sql } from './db';
 import { deleteObjects } from './s3';
+import { pgTimezone } from './timezone';
 import { toAppName } from '#lib/appname.ts';
 import { PAGE_SIZE, type Filters } from '#lib/filters.ts';
 import {
@@ -896,6 +897,36 @@ export async function moveStatus(id: number, delta: -1 | 1) {
 }
 
 // ---------- dashboard ----------
+
+export const DONE_MAX_WEEKS = 52;
+export type DoneIssue = Issue & { closedDay: string };
+
+/**
+ * Closed issues from the last `weeks` Monday-based weeks, newest first. Days are computed in
+ * the user's saved timezone (falling back to the server's) so late-night closes land on the
+ * right day.
+ */
+export async function listDone(userId: number, weeks: number, app: string | null) {
+	const [user] = await sql<{ timezone: string | null }[]>`select timezone from users where id = ${userId}`;
+	const tz = (await pgTimezone(user?.timezone)) ?? sql`current_setting('TimeZone')`;
+	const start = sql`(date_trunc('week', now() at time zone ${tz}) - ${weeks - 1} * interval '1 week')`;
+	const byApp = app ? sql`and lower(a.name) = ${app.toLowerCase()}` : sql``;
+	const from = sql`from issues i left join apps a on a.id = i.app_id join statuses s on s.id = i.status_id
+		where i.deleted_at is null and s.is_closed and i.closed_at is not null ${byApp}`;
+	const [issues, [meta]] = await Promise.all([
+		sql<DoneIssue[]>`
+			select ${issueColumns}, (i.closed_at at time zone ${tz})::date::text as closed_day
+			${from} and (i.closed_at at time zone ${tz}) >= ${start}
+			order by i.closed_at desc, i.id desc
+			limit 2000
+		`,
+		sql<{ today: string; hasOlder: boolean }[]>`
+			select (now() at time zone ${tz})::date::text as today,
+				exists (select 1 ${from} and (i.closed_at at time zone ${tz}) < ${start}) as has_older
+		`
+	]);
+	return { issues, today: meta.today, hasOlder: meta.hasOlder };
+}
 
 /** Open issues in the user's chosen focus order, independent of priority and due date. */
 export async function listTodayIssues(userId: number): Promise<Issue[]> {

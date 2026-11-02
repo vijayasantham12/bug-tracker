@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Search from '~icons/octicon/search-16';
 	import { onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
 	import type { App, Milestone, SearchIssue } from '#lib/types.ts';
@@ -71,6 +72,14 @@
 			detail: 'Open and closed',
 			group: 'Navigation',
 			href: '/?status=all'
+		},
+		{
+			id: 'done',
+			label: 'Done log',
+			detail: 'What you shipped, by week',
+			group: 'Navigation',
+			href: '/done',
+			keywords: 'changelog shipped closed release notes'
 		},
 		{
 			id: 'milestones',
@@ -267,16 +276,7 @@
 >
 	<h2 id="command-title" class="sr-only">Search issues and commands</h2>
 	<div class="flex items-center gap-2 border-b border-zinc-200 px-4 dark:border-zinc-800">
-		<svg
-			class="shrink-0 text-zinc-400"
-			width="18"
-			height="18"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="1.7"
-			aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="m16 16 4.5 4.5" /></svg
-		>
+		<Search aria-hidden="true" class="icon size-4 text-zinc-400" />
 		<input
 			bind:this={input}
 			bind:value={query}

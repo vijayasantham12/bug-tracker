@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Star from '~icons/octicon/star-16';
+	import StarFill from '~icons/octicon/star-fill-16';
 	import { api } from '#lib/api.ts';
 
 	let {
@@ -24,7 +26,7 @@
 
 <button
 	type="button"
-	class="shrink-0 rounded px-1.5 py-0.5 text-xs whitespace-nowrap disabled:opacity-40 {selected
+	class="inline-flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-xs whitespace-nowrap disabled:opacity-40 {selected
 		? 'bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400'
 		: 'text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-800 dark:hover:text-zinc-200'}"
 	aria-label="{selected ? 'Remove' : 'Add'} #{issueId} {selected ? 'from' : 'to'} Today"
@@ -35,6 +37,6 @@
 	disabled={busy}
 	onclick={toggle}
 >
-	{selected ? '★' : '☆'}{#if !compact}
+	{#if selected}<StarFill aria-hidden="true" />{:else}<Star aria-hidden="true" />{/if}{#if !compact}
 		{selected ? 'Today' : 'Add to Today'}{/if}
 </button>
