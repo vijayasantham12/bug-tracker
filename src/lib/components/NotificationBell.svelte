@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Bell from '~icons/octicon/bell-16';
+	import X from '~icons/octicon/x-16';
 	import { onMount, tick } from 'svelte';
 	import { afterNavigate } from '$app/navigation';
 	import { ago } from '#lib/format.ts';
@@ -172,20 +174,7 @@
 		title="Notifications"
 		onclick={toggle}
 	>
-		<svg
-			width="20"
-			height="20"
-			viewBox="0 0 24 24"
-			fill="none"
-			stroke="currentColor"
-			stroke-width="1.7"
-			stroke-linecap="round"
-			stroke-linejoin="round"
-			aria-hidden="true"
-		>
-			<path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9" />
-			<path d="M10 21h4" />
-		</svg>
+		<Bell aria-hidden="true" class="icon size-4" />
 		{#if unread > 0}
 			<span
 				class="absolute -top-1 -right-1 min-w-4 rounded-full bg-red-600 px-1 text-center text-[10px] leading-4 font-semibold text-white"
@@ -227,7 +216,7 @@
 						type="button"
 						class="rounded px-1 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
 						aria-label="Close notifications"
-						onclick={() => close(true)}>✕</button
+						onclick={() => close(true)}><X aria-hidden="true" /></button
 					>
 				</div>
 			</div>

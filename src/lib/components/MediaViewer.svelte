@@ -1,4 +1,7 @@
 <script lang="ts">
+	import X from '~icons/octicon/x-16';
+	import Download from '~icons/octicon/download-16';
+	import LinkExternal from '~icons/octicon/link-external-16';
 	import type { Attachment } from '#lib/types.ts';
 
 	/** `index` is the open item, or null when closed. */
@@ -43,18 +46,25 @@
 		<div class="flex items-center gap-3 px-4 py-2 text-sm">
 			<span class="truncate">{current.filename}</span>
 			{#if items.length > 1}<span class="text-zinc-500">{index + 1} / {items.length}</span>{/if}
-			<a href="/attachments/{current.id}?download" class="ml-auto hover:text-white" title="Download"
-				>↓</a
+			<a
+				href="/attachments/{current.id}?download"
+				class="ml-auto hover:text-white"
+				title="Download"
+				aria-label="Download"><Download aria-hidden="true" /></a
 			>
 			<a
 				href="/attachments/{current.id}"
 				target="_blank"
 				rel="noopener"
 				class="hover:text-white"
-				title="Open original">↗</a
+				title="Open original"
+				aria-label="Open original"><LinkExternal aria-hidden="true" /></a
 			>
-			<button class="text-lg hover:text-white" title="Close (Esc)" onclick={() => (index = null)}
-				>✕</button
+			<button
+				class="text-lg hover:text-white"
+				title="Close (Esc)"
+				aria-label="Close"
+				onclick={() => (index = null)}><X aria-hidden="true" /></button
 			>
 		</div>
 

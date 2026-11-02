@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Trash from '~icons/octicon/trash-16';
 	import { api } from '#lib/api.ts';
 	import { ago, fullDate } from '#lib/format.ts';
 	import { notify } from '#lib/toast.svelte.ts';
@@ -27,7 +28,8 @@
 
 <div class="mb-4">
 	<h1 class="text-lg font-semibold">
-		Trash <span class="text-sm font-normal text-zinc-500">· {data.total}</span>
+		<Trash aria-hidden="true" class="icon mr-1 text-zinc-400" />Trash
+		<span class="text-sm font-normal text-zinc-500">· {data.total}</span>
 	</h1>
 	<p class="mt-1 text-sm text-zinc-500">
 		Restore issues within {data.retentionDays} days, including their history, attachments, links, and

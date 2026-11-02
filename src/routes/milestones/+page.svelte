@@ -1,4 +1,5 @@
 <script lang="ts">
+	import MilestoneIcon from '~icons/octicon/milestone-16';
 	import { api } from '#lib/api.ts';
 	import { goto } from '$app/navigation';
 	import type { Milestone } from '#lib/types.ts';
@@ -64,7 +65,9 @@
 				href="/milestones/{milestone.id}"
 				class="rounded-lg border border-zinc-200 p-4 transition-colors hover:border-zinc-400 dark:border-zinc-800 dark:hover:border-zinc-600"
 			>
-				<h2 class="font-semibold">{milestone.name}</h2>
+				<h2 class="font-semibold">
+					<MilestoneIcon aria-hidden="true" class="icon mr-1 text-zinc-400" />{milestone.name}
+				</h2>
 				<p class="mt-1 text-xs text-zinc-500">
 					{done}/{milestone.totalCount} issues closed{#if milestone.dueDate}
 						· Due {milestone.dueDate}{/if}

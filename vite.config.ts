@@ -3,6 +3,7 @@ import { defineConfig } from 'vitest/config';
 import { playwright } from '@vitest/browser-playwright';
 import adapter from '@sveltejs/adapter-node';
 import { sveltekit } from '@sveltejs/kit/vite';
+import Icons from 'unplugin-icons/vite';
 
 export default defineConfig({
 	plugins: [
@@ -21,7 +22,9 @@ export default defineConfig({
 			// Set it (e.g. ORIGIN=http://localhost:3000 pnpm build) when serving over plain HTTP,
 			// otherwise CSRF checks reject every form post.
 			paths: { origin: process.env.ORIGIN || undefined }
-		})
+		}),
+		// Octicons as inline SVG components: `import Bug from '~icons/octicon/bug-16'`
+		Icons({ compiler: 'svelte', scale: 1, defaultClass: 'icon' })
 	],
 	test: {
 		expect: { requireAssertions: true },

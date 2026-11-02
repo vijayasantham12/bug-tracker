@@ -1,4 +1,5 @@
 <script lang="ts">
+	import X from '~icons/octicon/x-16';
 	import { onMount } from 'svelte';
 	import Autocomplete from '#lib/components/Autocomplete.svelte';
 	import { api } from '#lib/api.ts';
@@ -209,7 +210,12 @@
 				class="ml-auto hover:underline">see all +{result.label} →</a
 			>
 		{/if}
-		<button class="text-zinc-400 hover:text-zinc-700" onclick={() => (result = null)}>✕</button>
+		<button
+			class="text-zinc-400 hover:text-zinc-700"
+			aria-label="Dismiss"
+			title="Dismiss"
+			onclick={() => (result = null)}><X aria-hidden="true" /></button
+		>
 	</div>
 {/if}
 

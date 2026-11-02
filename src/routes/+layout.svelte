@@ -1,4 +1,13 @@
 <script lang="ts">
+	import Bug from '~icons/octicon/bug-16';
+	import IssueOpened from '~icons/octicon/issue-opened-16';
+	import IssueClosed from '~icons/octicon/issue-closed-16';
+	import Inbox from '~icons/octicon/inbox-16';
+	import Pulse from '~icons/octicon/pulse-16';
+	import Milestone from '~icons/octicon/milestone-16';
+	import Note from '~icons/octicon/note-16';
+	import Trash from '~icons/octicon/trash-16';
+	import Gear from '~icons/octicon/gear-16';
 	import './layout.css';
 	import { onMount } from 'svelte';
 	import { afterNavigate, goto } from '$app/navigation';
@@ -13,13 +22,14 @@
 	let { data, children }: LayoutProps = $props();
 
 	const links = [
-		{ href: '/', label: 'Issues' },
-		{ href: '/?inbox=1', label: 'Inbox' },
-		{ href: '/dashboard', label: 'Dashboard' },
-		{ href: '/milestones', label: 'Milestones' },
-		{ href: '/capture', label: 'Capture' },
-		{ href: '/trash', label: 'Trash' },
-		{ href: '/settings', label: 'Settings' }
+		{ href: '/', label: 'Issues', icon: IssueOpened },
+		{ href: '/?inbox=1', label: 'Inbox', icon: Inbox },
+		{ href: '/dashboard', label: 'Dashboard', icon: Pulse },
+		{ href: '/done', label: 'Done', icon: IssueClosed },
+		{ href: '/milestones', label: 'Milestones', icon: Milestone },
+		{ href: '/capture', label: 'Capture', icon: Note },
+		{ href: '/trash', label: 'Trash', icon: Trash },
+		{ href: '/settings', label: 'Settings', icon: Gear }
 	];
 	const active = (href: string) =>
 		href === '/?inbox=1'
@@ -96,14 +106,19 @@
 {#if data.user}
 	<header class="border-b border-zinc-200 dark:border-zinc-800">
 		<nav class="mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 sm:gap-x-4">
-			<a href={nav.listUrl} class="font-semibold tracking-tight">🐞 bugs</a>
+			<a href={nav.listUrl} class="font-semibold tracking-tight"
+				><Bug aria-hidden="true" class="icon mr-1" />bugs</a
+			>
 			{#each links as l (l.href)}
 				<a
 					href={l.href === '/' && !nav.listUrl.includes('inbox=1') ? nav.listUrl : l.href}
 					class={active(l.href)
 						? 'text-zinc-900 dark:text-white'
 						: 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'}
-					>{l.label}{#if l.label === 'Inbox' && data.inboxCount}<span
+					><l.icon
+						aria-hidden="true"
+						class="icon mr-1 opacity-70"
+					/>{l.label}{#if l.label === 'Inbox' && data.inboxCount}<span
 							class="ml-1 text-xs opacity-60">{data.inboxCount}</span
 						>{/if}</a
 				>

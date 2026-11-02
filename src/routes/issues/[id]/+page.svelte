@@ -1,5 +1,37 @@
 <script lang="ts">
+	import Link from '~icons/octicon/link-16';
+	import IssueRelatesTo from '~icons/octicon/issue-relates-to-16';
+	import Note from '~icons/octicon/note-16';
+	import Paperclip from '~icons/octicon/paperclip-16';
+	import Copy from '~icons/octicon/copy-16';
+	import Check from '~icons/octicon/check-16';
+	import X from '~icons/octicon/x-16';
+	import Download from '~icons/octicon/download-16';
+	import EventIcon from '#lib/components/EventIcon.svelte';
+	import ChevronDown from '~icons/octicon/chevron-down-16';
+	import ChevronRight from '~icons/octicon/chevron-right-16';
+	import PriorityIcon from '#lib/components/PriorityIcon.svelte';
+	import Repo from '~icons/octicon/repo-16';
+	import Milestone from '~icons/octicon/milestone-16';
+	import Stack from '~icons/octicon/stack-16';
+	import Calendar from '~icons/octicon/calendar-16';
+	import Sync from '~icons/octicon/sync-16';
+	import Bell from '~icons/octicon/bell-16';
+	import Alert from '~icons/octicon/alert-16';
+	import Server from '~icons/octicon/server-16';
+	import Versions from '~icons/octicon/versions-16';
+	import GitMerge from '~icons/octicon/git-merge-16';
+	import Tag from '~icons/octicon/tag-16';
+	import TypeIcon from '#lib/components/TypeIcon.svelte';
+	import StatusIcon from '#lib/components/StatusIcon.svelte';
+	import RelationIcon from '#lib/components/RelationIcon.svelte';
+	import IssueOpened from '~icons/octicon/issue-opened-16';
+	import IssueClosed from '~icons/octicon/issue-closed-16';
+	import IssueTracks from '~icons/octicon/issue-tracks-16';
+	import IssueTrackedBy from '~icons/octicon/issue-tracked-by-16';
+	import History from '~icons/octicon/history-16';
 	import { onMount, tick, untrack } from 'svelte';
+	import type { Snippet } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { goto } from '$app/navigation';
 	import { api, filesFrom, upload } from '#lib/api.ts';
@@ -571,10 +603,19 @@
 			<a
 				href="/issues/{data.parent.id}"
 				class="mb-1 inline-block text-xs text-zinc-500 hover:underline"
-				>↳ Subtask of <span class="font-sans">#{data.parent.id}</span> {data.parent.title}</a
+				><IssueTrackedBy aria-hidden="true" /> Subtask of
+				<span class="font-sans">#{data.parent.id}</span>
+				{data.parent.title}</a
 			>
 		{/if}
 		<div class="flex items-baseline gap-2">
+			{#if status}
+				<span
+					class="inline-flex shrink-0 items-center gap-1 self-center rounded-full px-2 py-0.5 text-xs font-medium"
+					style="color:{status.color};background:color-mix(in srgb, {status.color} 12%, transparent)"
+					title="Status (s)"><StatusIcon {status} />{status.name}</span
+				>
+			{/if}
 			<button
 				type="button"
 				class="group/id flex shrink-0 items-center gap-1 self-center rounded px-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
@@ -584,25 +625,13 @@
 				onclick={copyId}
 			>
 				#{issue.id}
-				<svg
-					width="13"
-					height="13"
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="2"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					aria-hidden="true"
-					class="opacity-50 group-hover/id:opacity-100"
-				>
-					{#if idCopied}
-						<path d="M20 6 9 17l-5-5" />
-					{:else}
-						<rect x="9" y="9" width="12" height="12" rx="2" />
-						<path d="M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1" />
-					{/if}
-				</svg>
+				{#if idCopied}<Check
+						aria-hidden="true"
+						class="icon size-3 text-green-600 dark:text-green-400"
+					/>{:else}<Copy
+						aria-hidden="true"
+						class="icon size-3 opacity-50 group-hover/id:opacity-100"
+					/>{/if}
 			</button>
 			<input
 				data-key="E"
@@ -679,16 +708,18 @@
 			active: boolean,
 			onclick: () => void,
 			disabled = false,
-			key = ''
+			key = '',
+			Icon?: typeof Copy
 		)}
 			<button
 				title={key ? `Shortcut: ${key}` : undefined}
 				aria-keyshortcuts={key || undefined}
-				class="rounded px-1.5 py-0.5 hover:bg-zinc-100 hover:text-zinc-800 disabled:opacity-50 dark:hover:bg-zinc-900 dark:hover:text-zinc-200 {active
+				class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-zinc-100 hover:text-zinc-800 disabled:opacity-50 dark:hover:bg-zinc-900 dark:hover:text-zinc-200 {active
 					? 'bg-zinc-100 text-zinc-800 dark:bg-zinc-900 dark:text-zinc-200'
 					: ''}"
 				{disabled}
-				{onclick}>{label}</button
+				{onclick}
+				>{#if Icon}<Icon aria-hidden="true" class="icon opacity-70" />{/if}{label}</button
 			>
 		{/snippet}
 
@@ -699,16 +730,25 @@
 					adding === 'subtask',
 					() => toggleAdding('subtask'),
 					false,
-					'Shift+S'
+					'Shift+S',
+					IssueTracks
 				)}
 			{/if}
-			{@render addButton('+ Link', adding === 'link', () => toggleAdding('link'), false, 'Shift+L')}
+			{@render addButton(
+				'+ Link',
+				adding === 'link',
+				() => toggleAdding('link'),
+				false,
+				'Shift+L',
+				Link
+			)}
 			{@render addButton(
 				'+ Related',
 				adding === 'relation',
 				() => toggleAdding('relation'),
 				false,
-				'Shift+R'
+				'Shift+R',
+				IssueRelatesTo
 			)}
 			{#if !issue.stopped.trim() && !issue.nextAction.trim()}
 				{@render addButton(
@@ -716,7 +756,8 @@
 					resumeOpen,
 					() => (resumeOpen = !resumeOpen),
 					false,
-					'r'
+					'r',
+					Note
 				)}
 			{/if}
 			{#if data.attachmentsEnabled}
@@ -725,7 +766,8 @@
 					false,
 					() => picker?.click(),
 					uploading > 0,
-					'a'
+					'a',
+					Paperclip
 				)}
 				<span class="ml-1 text-zinc-400">or paste / drop files</span>
 				<input
@@ -808,7 +850,9 @@
 			{@const done = data.subtasks.filter((t) => t.isClosed).length}
 			<div class="mt-4">
 				<div class="mb-1.5 flex items-center gap-2">
-					<h2 class="text-xs font-medium tracking-wide text-zinc-500 uppercase">Subtasks</h2>
+					<h2 class="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+						<IssueTracks aria-hidden="true" class="icon mr-0.5" />Subtasks
+					</h2>
 					<span
 						class="h-1.5 w-20 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800"
 						title="{done} of {data.subtasks.length} done"
@@ -824,9 +868,7 @@
 					{#each data.subtasks as t (t.id)}
 						{@const st = statusById.get(t.statusId)}
 						<li class="flex items-baseline gap-2">
-							<span class={t.isClosed ? 'text-green-600 dark:text-green-400' : 'text-zinc-400'}
-								>{t.isClosed ? '☑' : '☐'}</span
-							>
+							<StatusIcon status={st} />
 							<a
 								href="/issues/{t.id}"
 								class="min-w-0 truncate hover:underline {t.isClosed
@@ -845,7 +887,9 @@
 			<ul class="mt-4 space-y-0.5">
 				{#each data.links as l (l.id)}
 					<li class="group flex items-baseline gap-2">
-						<span class="w-24 shrink-0 text-xs text-zinc-500">link</span>
+						<span class="w-24 shrink-0 text-xs text-zinc-500"
+							><RelationIcon kind="link" class="icon mr-1" />link</span
+						>
 						<a
 							href={l.url}
 							target="_blank"
@@ -861,7 +905,7 @@
 							class="ml-auto shrink-0 text-xs text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-red-500"
 							title="Remove link"
 							onclick={() => api('DELETE', `/api/issues/${issue.id}/links`, { linkId: l.id })}
-							>✕</button
+							><X aria-hidden="true" /></button
 						>
 					</li>
 				{/each}
@@ -870,19 +914,31 @@
 						<span
 							class="w-24 shrink-0 text-xs {r.kind === 'blocked_by' && !r.otherClosed
 								? 'text-red-500'
-								: 'text-zinc-500'}">{relationLabel(r.kind)}</span
+								: 'text-zinc-500'}"
+							><RelationIcon kind={r.kind} class="icon mr-1" />{relationLabel(r.kind)}</span
 						>
 						<a
 							href="/issues/{r.otherId}"
 							class="min-w-0 truncate hover:underline {r.otherClosed
 								? 'text-zinc-400 line-through decoration-zinc-300 dark:decoration-zinc-700'
-								: ''}"><span class="text-xs text-zinc-400">#{r.otherId}</span> {r.otherTitle}</a
+								: ''}"
+							>{#if r.otherClosed}<IssueClosed
+									class="icon mr-1 text-purple-600 dark:text-purple-400"
+									aria-label="Closed"
+									role="img"
+								/>{:else}<IssueOpened
+									class="icon mr-1 text-green-600 dark:text-green-400"
+									aria-label="Open"
+									role="img"
+								/>{/if}<span class="text-xs text-zinc-400">#{r.otherId}</span>
+							{r.otherTitle}</a
 						>
 						<button
 							class="ml-auto shrink-0 text-xs text-zinc-400 opacity-0 group-hover:opacity-100 hover:text-red-500"
 							title="Remove"
 							onclick={() =>
-								api('DELETE', `/api/issues/${issue.id}/relations`, { relationId: r.id })}>✕</button
+								api('DELETE', `/api/issues/${issue.id}/relations`, { relationId: r.id })}
+							><X aria-hidden="true" /></button
 						>
 					</li>
 				{/each}
@@ -938,11 +994,16 @@
 								{fileSize(f.size)}
 								<a
 									href="/attachments/{f.id}?download"
-									class="ml-auto hover:text-zinc-700 dark:hover:text-zinc-200">↓</a
+									class="ml-auto hover:text-zinc-700 dark:hover:text-zinc-200"
+									aria-label="Download {f.filename}"
+									title="Download"><Download aria-hidden="true" /></a
 								>
 								<button
 									class="ml-2 opacity-0 group-hover:opacity-100 hover:text-red-500"
-									onclick={() => removeAttachment(f.id, f.filename)}>✕</button
+									aria-label="Remove {f.filename}"
+									title="Remove"
+									onclick={() => removeAttachment(f.id, f.filename)}
+									><X aria-hidden="true" /></button
 								>
 							</div>
 						</li>
@@ -968,12 +1029,21 @@
 				<span>{ev.newValue ?? '—'}</span>
 			{/if}
 		{/snippet}
+		<!-- an icon on the timeline line; a folded group shows its most telling change -->
+		{#snippet node(ev: IssueEvent | 'created', top = '-top-0.5')}
+			<span
+				class="absolute {top} -left-6 flex size-5 -translate-x-1/2 items-center justify-center rounded-full bg-white text-xs dark:bg-zinc-950"
+				><EventIcon {ev} statuses={data.statuses} /></span
+			>
+		{/snippet}
 		{#snippet who(ev: IssueEvent)}
 			{#if ev.userName}<span class="text-zinc-700 dark:text-zinc-300">{ev.userName}</span>{/if}
 		{/snippet}
 
 		<div class="mt-6 mb-2 flex items-center gap-2">
-			<h2 class="text-xs font-medium tracking-wide text-zinc-500 uppercase">Activity</h2>
+			<h2 class="text-xs font-medium tracking-wide text-zinc-500 uppercase">
+				<History aria-hidden="true" class="icon mr-0.5" />Activity
+			</h2>
 			<label class="ml-auto flex cursor-pointer items-center gap-1.5 text-xs text-zinc-500">
 				<input
 					type="checkbox"
@@ -983,9 +1053,10 @@
 				Comments only
 			</label>
 		</div>
-		<ol class="space-y-2 border-l border-zinc-200 pl-4 dark:border-zinc-800">
+		<ol class="ml-2.5 space-y-3 border-l border-zinc-200 pl-6 dark:border-zinc-800">
 			{#if !commentsOnly}
-				<li class="text-xs text-zinc-400" title={fullDate(issue.createdAt)}>
+				<li class="relative text-xs text-zinc-400" title={fullDate(issue.createdAt)}>
+					{@render node('created')}
 					Created{issue.createdByName ? ` by ${issue.createdByName}` : ''}
 					{ago(issue.createdAt)}
 				</li>
@@ -998,20 +1069,30 @@
 						{@const first = item.events[0]}
 						{@const last = item.events.at(-1)!}
 						{#if item.events.length === 1}
-							<li class="text-xs text-zinc-500" title={fullDate(first.createdAt)}>
+							<li class="relative text-xs text-zinc-500" title={fullDate(first.createdAt)}>
+								{@render node(first)}
 								{@render who(first)}
 								{@render changeLine(first)}
 								<span class="text-zinc-400">· {ago(first.createdAt)}</span>
 							</li>
 						{:else}
 							{@const open = expanded.has(item.key)}
-							<li class="text-xs text-zinc-500">
+							<li class="relative text-xs text-zinc-500">
+								{@render node(
+									item.events.find((e) => e.field === 'status') ??
+										item.events.find((e) => e.field === 'trash') ??
+										first
+								)}
 								<button
 									class="text-left hover:text-zinc-800 dark:hover:text-zinc-200"
 									title={fullDate(last.createdAt)}
 									onclick={() => (open ? expanded.delete(item.key) : expanded.add(item.key))}
 								>
-									<span class="inline-block w-2 text-zinc-400">{open ? '▾' : '▸'}</span>
+									<span class="text-zinc-400"
+										>{#if open}<ChevronDown aria-hidden="true" />{:else}<ChevronRight
+												aria-hidden="true"
+											/>{/if}</span
+									>
 									{@render who(first)}
 									changed {changedFields(item.events)}
 									<span class="text-zinc-400">· {ago(last.createdAt)}</span>
@@ -1019,7 +1100,10 @@
 								{#if open}
 									<ul class="mt-1 space-y-1 pl-3">
 										{#each item.events as ev (ev.id)}
-											<li title={fullDate(ev.createdAt)}>{@render changeLine(ev)}</li>
+											<li class="flex items-baseline gap-1.5" title={fullDate(ev.createdAt)}>
+												<EventIcon {ev} statuses={data.statuses} />
+												<span>{@render changeLine(ev)}</span>
+											</li>
 										{/each}
 									</ul>
 								{/if}
@@ -1028,7 +1112,8 @@
 					{/if}
 				{:else}
 					{@const ev = item.ev}
-					<li class="group rounded border border-zinc-200 p-2 dark:border-zinc-800">
+					<li class="group relative rounded border border-zinc-200 p-2 dark:border-zinc-800">
+						{@render node(ev, 'top-1.5')}
 						<div class="mb-1 flex text-xs text-zinc-400">
 							{#if ev.userName}<span class="mr-1 font-medium text-zinc-600 dark:text-zinc-300"
 									>{ev.userName}</span
@@ -1063,14 +1148,23 @@
 	</section>
 
 	<aside class="text-sm">
-		{#snippet label(text: string)}
-			<span class="truncate text-xs text-zinc-500">{text}</span>
+		<!-- every property gets an icon so the labels line up; Status/Type/Priority icons follow the value -->
+		{#snippet label(text: string, Icon: typeof Bell)}
+			<span class="flex items-center gap-1.5 truncate text-xs text-zinc-500"
+				><Icon aria-hidden="true" class="icon text-zinc-400 dark:text-zinc-600" />{text}</span
+			>
+		{/snippet}
+		{#snippet valueLabel(text: string, icon: Snippet)}
+			<span class="flex items-center gap-1.5 truncate text-xs text-zinc-500"
+				>{@render icon()}{text}</span
+			>
 		{/snippet}
 		{#snippet divider()}
 			<div class="col-span-2 my-1.5 border-t border-zinc-100 dark:border-zinc-900"></div>
 		{/snippet}
 		<div class="grid grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-x-1">
-			{@render label('Status')}
+			{#snippet statusIcon()}<StatusIcon {status} />{/snippet}
+			{@render valueLabel('Status', statusIcon)}
 			<select
 				data-key="s"
 				class="prop"
@@ -1082,7 +1176,8 @@
 						>{s.name}</option
 					>{/each}
 			</select>
-			{@render label('Priority')}
+			{#snippet priorityIcon()}<PriorityIcon priority={issue.priority} />{/snippet}
+			{@render valueLabel('Priority', priorityIcon)}
 			<select
 				data-key="p"
 				class="prop {PRIORITY_CLASS[issue.priority]}"
@@ -1093,7 +1188,8 @@
 						>{p.label}</option
 					>{/each}
 			</select>
-			{@render label('Type')}
+			{#snippet typeIcon()}<TypeIcon type={issue.type} class={TYPE_CLASS[issue.type]} />{/snippet}
+			{@render valueLabel('Type', typeIcon)}
 			<select
 				data-key="t"
 				class="prop {TYPE_CLASS[issue.type]}"
@@ -1103,7 +1199,7 @@
 				{#each TYPES as t (t)}<option value={t} class={TYPE_CLASS[t]}>{TYPE_LABEL[t]}</option
 					>{/each}
 			</select>
-			{@render label('App')}
+			{@render label('App', Repo)}
 			<select
 				class="prop"
 				value={issue.appId ?? ''}
@@ -1116,7 +1212,7 @@
 
 			{@render divider()}
 
-			{@render label('Milestone')}
+			{@render label('Milestone', Milestone)}
 			<select
 				data-key="m"
 				class="prop {faint(!issue.milestoneId)}"
@@ -1129,7 +1225,7 @@
 					>{/each}
 				<option value="new">+ New milestone…</option>
 			</select>
-			{@render label('Size')}
+			{@render label('Size', Stack)}
 			<select
 				class="prop uppercase {faint(!issue.size)}"
 				value={issue.size ?? ''}
@@ -1138,7 +1234,7 @@
 				<option value="">—</option>
 				{#each SIZES as sz (sz)}<option value={sz}>{sz.toUpperCase()}</option>{/each}
 			</select>
-			{@render label('Due')}
+			{@render label('Due', Calendar)}
 			<!-- empty: a text field showing "—" that turns into a date picker on focus -->
 			<input
 				data-key="d"
@@ -1158,7 +1254,7 @@
 				onblur={(e) => !e.currentTarget.value && (e.currentTarget.type = 'text')}
 				onchange={(e) => save({ dueDate: e.currentTarget.value || null })}
 			/>
-			{@render label('Repeat')}
+			{@render label('Repeat', Sync)}
 			<select
 				class="prop {faint(!issue.repeat)}"
 				value={issue.repeat ?? ''}
@@ -1168,16 +1264,16 @@
 				<option value="">—</option>
 				{#each REPEATS as r (r.value)}<option value={r.value}>↻ {r.label}</option>{/each}
 			</select>
-			{@render label('Remind me')}
+			{@render label('Remind me', Bell)}
 			{#if issue.remindAt && !pickingReminder}
 				<span class="flex min-w-0 items-center gap-1 px-1.5 py-1">
 					<span class="truncate" title="You’ll get a notification then"
-						>🔔 {reminderText(issue.remindAt)}</span
+						><Bell aria-hidden="true" /> {reminderText(issue.remindAt)}</span
 					>
 					<button
 						class="ml-auto text-xs text-zinc-400 hover:text-red-500"
 						title="Remove reminder"
-						onclick={() => setReminder(null)}>✕</button
+						onclick={() => setReminder(null)}><X aria-hidden="true" /></button
 					>
 				</span>
 			{:else if pickingReminder}
@@ -1205,7 +1301,7 @@
 					<option value="pick">Pick a time…</option>
 				</select>
 			{/if}
-			{@render label('Parent')}
+			{@render label('Parent', IssueTrackedBy)}
 			<input
 				class="prop disabled:cursor-not-allowed"
 				value={issue.parentId ? `#${issue.parentId}` : ''}
@@ -1221,7 +1317,7 @@
 			{@render divider()}
 
 			{#if issue.type === 'bug' || issue.severity}
-				{@render label('Severity')}
+				{@render label('Severity', Alert)}
 				<select
 					class="prop {issue.severity ? SEVERITY_CLASS[issue.severity] : faint(true)}"
 					value={issue.severity ?? ''}
@@ -1235,7 +1331,7 @@
 				</select>
 			{/if}
 			{#if issue.type === 'bug' || issue.environment}
-				{@render label('Environment')}
+				{@render label('Environment', Server)}
 				<select
 					class="prop {issue.environment ? ENV_CLASS[issue.environment] : faint(true)}"
 					value={issue.environment ?? ''}
@@ -1248,7 +1344,7 @@
 				</select>
 			{/if}
 			{#if issue.type === 'bug' || issue.version}
-				{@render label('Found in')}
+				{@render label('Found in', Versions)}
 				<input
 					class="prop"
 					value={issue.version ?? ''}
@@ -1257,7 +1353,7 @@
 					placeholder="—"
 				/>
 			{/if}
-			{@render label('Fixed in')}
+			{@render label('Fixed in', GitMerge)}
 			<input
 				class="prop"
 				value={issue.fixedIn ?? ''}
@@ -1268,7 +1364,7 @@
 
 			{@render divider()}
 
-			{@render label('Labels')}
+			{@render label('Labels', Tag)}
 			<input
 				data-key="l"
 				class="prop"

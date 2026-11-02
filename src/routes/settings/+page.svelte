@@ -1,4 +1,7 @@
 <script lang="ts">
+	import ChevronUp from '~icons/octicon/chevron-up-16';
+	import ChevronDown from '~icons/octicon/chevron-down-16';
+	import StatusIcon from '#lib/components/StatusIcon.svelte';
 	import { api } from '#lib/api.ts';
 	import { notify } from '#lib/toast.svelte.ts';
 	import { ago, fileSize } from '#lib/format.ts';
@@ -119,13 +122,18 @@
 							<button
 								class="px-1 text-zinc-400 hover:text-zinc-800 disabled:opacity-20 dark:hover:text-zinc-200"
 								disabled={i === 0}
-								onclick={() => patchStatus(s.id, { move: -1 })}>↑</button
+								aria-label="Move {s.name} up"
+								onclick={() => patchStatus(s.id, { move: -1 })}
+								><ChevronUp aria-hidden="true" /></button
 							>
 							<button
 								class="px-1 text-zinc-400 hover:text-zinc-800 disabled:opacity-20 dark:hover:text-zinc-200"
 								disabled={i === data.statuses.length - 1}
-								onclick={() => patchStatus(s.id, { move: 1 })}>↓</button
+								aria-label="Move {s.name} down"
+								onclick={() => patchStatus(s.id, { move: 1 })}
+								><ChevronDown aria-hidden="true" /></button
 							>
+							<StatusIcon status={s} class="ml-1" />
 						</td>
 						<td class="py-1 pr-2">
 							<input

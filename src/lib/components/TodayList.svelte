@@ -1,6 +1,14 @@
 <script lang="ts">
+	import X from '~icons/octicon/x-16';
+	import ChevronUp from '~icons/octicon/chevron-up-16';
+	import ChevronDown from '~icons/octicon/chevron-down-16';
+	import TypeIcon from '#lib/components/TypeIcon.svelte';
+	import StatusIcon from '#lib/components/StatusIcon.svelte';
+	import Blocked from '~icons/octicon/blocked-16';
+	import Star from '~icons/octicon/star-16';
 	import { refreshAll } from '$app/navigation';
 	import { api } from '#lib/api.ts';
+	import { TYPE_CLASS } from '#lib/format.ts';
 	import type { Issue, Status } from '#lib/types.ts';
 
 	let { issues, statuses }: { issues: Issue[]; statuses: Status[] } = $props();
@@ -149,15 +157,23 @@
 							</p>
 						{/if}
 						<div class="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-zinc-500">
-							<span class="font-sans">#{issue.id}</span>
+							<span class="inline-flex items-center gap-1 font-sans"
+								><TypeIcon type={issue.type} class={TYPE_CLASS[issue.type]} />#{issue.id}</span
+							>
 							<span class="inline-flex items-center gap-1"
 								><span class="size-1.5 rounded-full" style="background:{issue.appColor}"
 								></span>{issue.appName}</span
 							>
-							<span style="color:{statusById.get(issue.statusId)?.color}"
-								>{statusById.get(issue.statusId)?.name}</span
+							<span
+								class="inline-flex items-center gap-1"
+								style="color:{statusById.get(issue.statusId)?.color}"
+								><StatusIcon status={statusById.get(issue.statusId)} />{statusById.get(
+									issue.statusId
+								)?.name}</span
 							>
-							{#if issue.isBlocked}<span class="text-red-500">⛔ blocked</span>{/if}
+							{#if issue.isBlocked}<span class="text-red-500"
+									><Blocked aria-hidden="true" /> blocked</span
+								>{/if}
 						</div>
 					</div>
 					<div class="ml-auto flex items-center gap-1">
@@ -167,7 +183,7 @@
 							aria-label="Move #{issue.id} up"
 							title="Move up"
 							disabled={busy || index === 0}
-							onclick={() => move(issue.id, index - 1)}>↑</button
+							onclick={() => move(issue.id, index - 1)}><ChevronUp aria-hidden="true" /></button
 						>
 						<button
 							type="button"
@@ -175,7 +191,7 @@
 							aria-label="Move #{issue.id} down"
 							title="Move down"
 							disabled={busy || index === ordered.length - 1}
-							onclick={() => move(issue.id, index + 1)}>↓</button
+							onclick={() => move(issue.id, index + 1)}><ChevronDown aria-hidden="true" /></button
 						>
 						<button
 							type="button"
@@ -183,7 +199,7 @@
 							aria-label="Remove #{issue.id} from Today"
 							title="Remove from Today (keeps the issue)"
 							disabled={busy}
-							onclick={() => remove(issue)}>✕</button
+							onclick={() => remove(issue)}><X aria-hidden="true" /></button
 						>
 					</div>
 				</li>
@@ -192,8 +208,9 @@
 		<p class="mt-2 text-xs text-zinc-400">Drag the handle or use ↑ / ↓ to set your order.</p>
 	{:else}
 		<p class="py-2 text-zinc-500">
-			Nothing picked yet. Use <span class="text-amber-700 dark:text-amber-400">☆</span> beside an issue
-			or add one from the suggestions below.
+			Nothing picked yet. Use <span class="text-amber-700 dark:text-amber-400"
+				><Star aria-label="star" role="img" /></span
+			> beside an issue or add one from the suggestions below.
 		</p>
 	{/if}
 	<p class="sr-only" role="status">{announcement}</p>
