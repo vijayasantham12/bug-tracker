@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ArrowRight from '~icons/octicon/arrow-right-16';
 	import MilestoneIcon from '~icons/octicon/milestone-16';
 	import { api } from '#lib/api.ts';
 	import { goto } from '$app/navigation';
@@ -34,7 +35,7 @@
 		</p>
 	</div>
 	<a href="/settings#milestones" class="text-sm text-zinc-500 hover:underline"
-		>Manage milestones →</a
+		>Manage milestones <ArrowRight aria-hidden="true" class="icon" /></a
 	>
 </div>
 <form
@@ -79,7 +80,8 @@
 					></div>
 				</div>
 				<p class="mt-4 text-sm text-zinc-500">
-					{milestone.hillRevision ? 'Open Hill Chart' : 'Set up Hill Chart'} →
+					{milestone.hillRevision ? 'Open Hill Chart' : 'Set up Hill Chart'}
+					<ArrowRight aria-hidden="true" class="icon" />
 				</p>
 			</a>
 		{/each}

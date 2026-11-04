@@ -1,4 +1,5 @@
 <script lang="ts">
+	import Duplicate from '~icons/octicon/duplicate-16';
 	import X from '~icons/octicon/x-16';
 	import Paperclip from '~icons/octicon/paperclip-16';
 	import { onMount } from 'svelte';
@@ -261,7 +262,7 @@
 				</li>
 				{#each hints.get(p.title) as h (h.id)}
 					<li class="pl-4 text-amber-700 dark:text-amber-400">
-						≈ similar open issue
+						<Duplicate aria-hidden="true" class="icon" /> similar open issue
 						<a href="/issues/{h.id}" target="_blank" rel="noopener" class="hover:underline"
 							><span class="font-sans">#{h.id}</span> {h.title}</a
 						>

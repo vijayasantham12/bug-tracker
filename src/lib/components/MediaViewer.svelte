@@ -1,4 +1,6 @@
 <script lang="ts">
+	import ChevronRight from '~icons/octicon/chevron-right-16';
+	import ChevronLeft from '~icons/octicon/chevron-left-16';
 	import X from '~icons/octicon/x-16';
 	import Download from '~icons/octicon/download-16';
 	import LinkExternal from '~icons/octicon/link-external-16';
@@ -92,12 +94,12 @@
 				<button
 					class="absolute top-1/2 left-2 -translate-y-1/2 rounded-full bg-black/50 px-3 py-2 text-2xl hover:bg-black/80"
 					title="Previous (←)"
-					onclick={() => step(-1)}>‹</button
+					onclick={() => step(-1)}><ChevronLeft aria-hidden="true" class="icon size-6" /></button
 				>
 				<button
 					class="absolute top-1/2 right-2 -translate-y-1/2 rounded-full bg-black/50 px-3 py-2 text-2xl hover:bg-black/80"
 					title="Next (→)"
-					onclick={() => step(1)}>›</button
+					onclick={() => step(1)}><ChevronRight aria-hidden="true" class="icon size-6" /></button
 				>
 			{/if}
 		</div>

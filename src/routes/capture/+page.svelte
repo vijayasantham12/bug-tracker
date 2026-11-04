@@ -1,4 +1,7 @@
 <script lang="ts">
+	import IssueTrackedBy from '~icons/octicon/issue-tracked-by-16';
+	import Duplicate from '~icons/octicon/duplicate-16';
+	import ArrowRight from '~icons/octicon/arrow-right-16';
 	import X from '~icons/octicon/x-16';
 	import { onMount } from 'svelte';
 	import Autocomplete from '#lib/components/Autocomplete.svelte';
@@ -207,7 +210,8 @@
 		{#if result.label}
 			<a
 				href="/?label={encodeURIComponent(result.label)}&status=all"
-				class="ml-auto hover:underline">see all +{result.label} →</a
+				class="ml-auto hover:underline"
+				>see all +{result.label} <ArrowRight aria-hidden="true" class="icon" /></a
 			>
 		{/if}
 		<button
@@ -281,7 +285,7 @@ Tab indents · Enter continues the list · Ctrl+Enter adds all`}
 					{/if}
 					{#each it.subtasks as sub, j (j)}
 						<div class="mt-0.5 text-sm">
-							<span class="text-zinc-400">↳</span>
+							<IssueTrackedBy aria-hidden="true" class="icon text-zinc-400" />
 							{sub.title}
 							{#if sub.dueDate}<span class="text-xs text-zinc-500">due {dueLabel(sub.dueDate)}</span
 								>{/if}
@@ -292,7 +296,7 @@ Tab indents · Enter continues the list · Ctrl+Enter adds all`}
 					{/each}
 					{#each hints.get(it.title) as h (h.id)}
 						<div class="mt-0.5 text-xs text-amber-700 dark:text-amber-400">
-							≈ similar open
+							<Duplicate aria-hidden="true" class="icon" /> similar open
 							<a href="/issues/{h.id}" target="_blank" rel="noopener" class="hover:underline"
 								><span class="font-sans">#{h.id}</span> {h.title}</a
 							>

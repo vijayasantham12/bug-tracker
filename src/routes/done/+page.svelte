@@ -1,4 +1,5 @@
 <script lang="ts">
+	import ArrowRight from '~icons/octicon/arrow-right-16';
 	import Copy from '~icons/octicon/copy-16';
 	import TypeIcon from '#lib/components/TypeIcon.svelte';
 	import StatusIcon from '#lib/components/StatusIcon.svelte';
@@ -135,7 +136,7 @@
 		<a
 			class="hover:underline"
 			href={href({ weeks: Math.min(data.weeks + 4, data.maxWeeks) })}
-			data-sveltekit-noscroll>Show 4 more weeks →</a
+			data-sveltekit-noscroll>Show 4 more weeks <ArrowRight aria-hidden="true" class="icon" /></a
 		>
 	</nav>
 {:else if data.hasOlder}

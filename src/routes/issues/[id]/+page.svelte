@@ -1,4 +1,8 @@
 <script lang="ts">
+	import TriangleRight from '~icons/octicon/triangle-right-16';
+	import KebabHorizontal from '~icons/octicon/kebab-horizontal-16';
+	import ArrowRight from '~icons/octicon/arrow-right-16';
+	import ArrowLeft from '~icons/octicon/arrow-left-16';
 	import Link from '~icons/octicon/link-16';
 	import IssueRelatesTo from '~icons/octicon/issue-relates-to-16';
 	import Note from '~icons/octicon/note-16';
@@ -597,7 +601,9 @@
 <svelte:head><title>#{issue.id} {issue.title}</title></svelte:head>
 
 <div class="mb-3 flex items-center gap-3 text-zinc-500">
-	<a href={nav.listUrl} class="hover:underline">← Issues</a>
+	<a href={nav.listUrl} class="inline-flex items-center gap-1 hover:underline"
+		><ArrowLeft aria-hidden="true" class="icon size-4" />Issues</a
+	>
 	<span class="text-xs text-zinc-400"
 		><span class="kbd">Esc</span> back ·
 		<button class="hover:underline" onclick={() => (showShortcuts = true)}
@@ -667,7 +673,7 @@
 			<details class="relative shrink-0 self-center" bind:this={menu}>
 				<summary
 					class="cursor-pointer list-none rounded px-2 text-lg leading-6 text-zinc-400 select-none hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
-					title="More actions">⋯</summary
+					title="More actions"><KebabHorizontal aria-hidden="true" class="icon" /></summary
 				>
 				<div
 					class="absolute right-0 z-20 mt-1 w-40 rounded border border-zinc-200 bg-white p-1 text-sm shadow-md dark:border-zinc-800 dark:bg-zinc-950"
@@ -991,7 +997,7 @@
 											></video>
 											<span
 												class="absolute inset-0 flex items-center justify-center text-2xl text-white/90 drop-shadow"
-												>▶</span
+												><TriangleRight aria-hidden="true" class="icon size-10" /></span
 											>
 										</div>
 									{:else}
@@ -1049,7 +1055,8 @@
 				{ev.newValue ? `marked as ${ev.newValue}` : `removed “${ev.oldValue}”`}
 			{:else}
 				<span class="text-zinc-400">{ev.field}:</span>
-				<span class="line-through opacity-60">{ev.oldValue ?? '—'}</span> →
+				<span class="line-through opacity-60">{ev.oldValue ?? '—'}</span>
+				<ArrowRight aria-hidden="true" class="icon" />
 				<span>{ev.newValue ?? '—'}</span>
 			{/if}
 		{/snippet}

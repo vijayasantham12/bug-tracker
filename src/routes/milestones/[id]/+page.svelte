@@ -1,4 +1,6 @@
 <script lang="ts">
+	import ArrowRight from '~icons/octicon/arrow-right-16';
+	import ArrowLeft from '~icons/octicon/arrow-left-16';
 	import X from '~icons/octicon/x-16';
 	import Milestone from '~icons/octicon/milestone-16';
 	import { untrack } from 'svelte';
@@ -102,7 +104,9 @@
 
 <svelte:head><title>{data.milestone.name} · Hill Chart · Bugs</title></svelte:head>
 
-<a href="/milestones" class="text-xs text-zinc-500 hover:underline">← Milestones</a>
+<a href="/milestones" class="inline-flex items-center gap-1 text-xs text-zinc-500 hover:underline"
+	><ArrowLeft aria-hidden="true" class="icon size-3" />Milestones</a
+>
 <div class="mt-3 mb-5 flex flex-wrap items-start justify-between gap-3">
 	<div>
 		<div class="flex flex-wrap items-center gap-2">
@@ -116,7 +120,9 @@
 				· Due {data.milestone.dueDate}{/if}
 		</p>
 	</div>
-	<a href="/?ms={data.milestone.id}&status=all" class="btn">View issues →</a>
+	<a href="/?ms={data.milestone.id}&status=all" class="btn"
+		>View issues <ArrowRight aria-hidden="true" class="icon" /></a
+	>
 </div>
 
 <section
@@ -274,13 +280,14 @@
 					class="btn py-0.5"
 					aria-label="Older snapshot"
 					disabled={historyIndex >= data.updates.length - 1}
-					onclick={() => historyIndex++}>← Older</button
+					onclick={() => historyIndex++}><ArrowLeft aria-hidden="true" class="icon" /> Older</button
 				>
 				<button
 					class="btn py-0.5"
 					aria-label="Newer snapshot"
 					disabled={historyIndex === 0}
-					onclick={() => historyIndex--}>Newer →</button
+					onclick={() => historyIndex--}
+					>Newer <ArrowRight aria-hidden="true" class="icon" /></button
 				>
 			</div>
 		</div>

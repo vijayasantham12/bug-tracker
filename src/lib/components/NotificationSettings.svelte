@@ -1,4 +1,13 @@
 <script lang="ts">
+	import type { Component } from 'svelte';
+	import DotFill from '~icons/octicon/dot-fill-16';
+	import Flame from '~icons/octicon/flame-16';
+	import Sync from '~icons/octicon/sync-16';
+	import Comment from '~icons/octicon/comment-16';
+	import Sun from '~icons/octicon/sun-16';
+	import Bell from '~icons/octicon/bell-16';
+	import CheckCircle from '~icons/octicon/check-circle-16';
+	import ArrowRight from '~icons/octicon/arrow-right-16';
 	import { onMount } from 'svelte';
 	import { api } from '#lib/api.ts';
 	import { ago } from '#lib/format.ts';
@@ -23,13 +32,18 @@
 	let busy = $state(false);
 	const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-	const SWITCHES: { key: keyof NotifyPrefs; label: string; team?: boolean }[] = [
-		{ key: 'reminders', label: '⏰ Reminders you set on issues' },
-		{ key: 'digest', label: '☀️ Daily summary: due today, overdue, milestones due' },
-		{ key: 'unblocked', label: '✅ An issue becomes unblocked' },
-		{ key: 'comments', label: '💬 Comments on issues you created or commented on', team: true },
-		{ key: 'status', label: '↻ Status changes on issues you created', team: true },
-		{ key: 'prodBugs', label: '🔥 New critical / major production bugs', team: true }
+	const SWITCHES: { key: keyof NotifyPrefs; label: string; icon: Component; team?: boolean }[] = [
+		{ key: 'reminders', label: 'Reminders you set on issues', icon: Bell },
+		{ key: 'digest', label: 'Daily summary: due today, overdue, milestones due', icon: Sun },
+		{ key: 'unblocked', label: 'An issue becomes unblocked', icon: CheckCircle },
+		{
+			key: 'comments',
+			label: 'Comments on issues you created or commented on',
+			icon: Comment,
+			team: true
+		},
+		{ key: 'status', label: 'Status changes on issues you created', icon: Sync, team: true },
+		{ key: 'prodBugs', label: 'New critical / major production bugs', icon: Flame, team: true }
 	];
 
 	async function registration() {
@@ -155,7 +169,9 @@
 		{#if status === 'checking'}
 			<span class="text-zinc-400">Checking this device…</span>
 		{:else if status === 'on'}
-			<span class="text-green-600 dark:text-green-400">● On for this device</span>
+			<span class="text-green-600 dark:text-green-400"
+				><DotFill aria-hidden="true" class="icon" /> On for this device</span
+			>
 			<button class="btn py-0.5 text-xs" onclick={() => test('test')}>Send test</button>
 			<button class="btn py-0.5 text-xs" onclick={() => test('digest')}>Send today’s summary</button
 			>
@@ -173,8 +189,9 @@
 			>
 		{:else if status === 'ios-install'}
 			<span class="text-zinc-600 dark:text-zinc-300"
-				>On iPhone/iPad: tap <b>Share → Add to Home Screen</b>, open the app from the home screen,
-				and turn notifications on there (iOS 16.4+).</span
+				>On iPhone/iPad: tap <b
+					>Share <ArrowRight aria-hidden="true" class="icon" /> Add to Home Screen</b
+				>, open the app from the home screen, and turn notifications on there (iOS 16.4+).</span
 			>
 		{:else if status === 'insecure'}
 			<span class="text-amber-600 dark:text-amber-400"
@@ -197,6 +214,7 @@
 						checked={prefs[s.key] as boolean}
 						onchange={(e) => setPref({ [s.key]: e.currentTarget.checked })}
 					/>
+					<s.icon aria-hidden="true" class="icon text-zinc-500" />
 					{s.label}
 				</label>
 				{#if s.key === 'digest' && prefs.digest}

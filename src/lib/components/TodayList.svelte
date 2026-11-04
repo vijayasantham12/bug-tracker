@@ -1,4 +1,9 @@
 <script lang="ts">
+	import Check from '~icons/octicon/check-16';
+	import Grabber from '~icons/octicon/grabber-16';
+	import ArrowDown from '~icons/octicon/arrow-down-16';
+	import ArrowUp from '~icons/octicon/arrow-up-16';
+	import ArrowRight from '~icons/octicon/arrow-right-16';
 	import X from '~icons/octicon/x-16';
 	import ChevronUp from '~icons/octicon/chevron-up-16';
 	import ChevronDown from '~icons/octicon/chevron-down-16';
@@ -99,7 +104,9 @@
 		>
 			Today · {ordered.length}
 		</h1>
-		<a href="/" class="ml-auto text-xs text-zinc-500 hover:underline">Choose issues →</a>
+		<a href="/" class="ml-auto text-xs text-zinc-500 hover:underline"
+			>Choose issues <ArrowRight aria-hidden="true" class="icon" /></a
+		>
 	</div>
 	<p class="mb-3 text-xs text-zinc-500">
 		Pick 1–3 issues to focus on. Unfinished work stays here until you finish or remove it.
@@ -132,7 +139,7 @@
 						aria-label="Drag to reorder #{issue.id}"
 						title="Drag to reorder, or use the up/down buttons"
 						ondragstart={(event) => startDrag(event, issue.id)}
-						ondragend={endDrag}>⠿</button
+						ondragend={endDrag}><Grabber aria-hidden="true" class="icon" /></button
 					>
 					<span class="w-4 text-xs text-zinc-400 tabular-nums" aria-hidden="true">{index + 1}</span>
 					<button
@@ -143,7 +150,7 @@
 						title={doneStatus
 							? `Mark as ${doneStatus.name}`
 							: 'Add a closed status in Settings to complete issues'}
-						onclick={() => finish(issue)}>✓</button
+						onclick={() => finish(issue)}><Check aria-hidden="true" class="icon" /></button
 					>
 					<div class="min-w-0 flex-1 basis-36">
 						<a href="/issues/{issue.id}" class="break-words hover:underline">{issue.title}</a>
@@ -205,7 +212,12 @@
 				</li>
 			{/each}
 		</ol>
-		<p class="mt-2 text-xs text-zinc-400">Drag the handle or use ↑ / ↓ to set your order.</p>
+		<p class="mt-2 text-xs text-zinc-400">
+			Drag the handle or use <ArrowUp aria-hidden="true" class="icon" /> / <ArrowDown
+				aria-hidden="true"
+				class="icon"
+			/> to set your order.
+		</p>
 	{:else}
 		<p class="py-2 text-zinc-500">
 			Nothing picked yet. Use <span class="text-amber-700 dark:text-amber-400"

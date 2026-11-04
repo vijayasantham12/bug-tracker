@@ -1,4 +1,6 @@
 <script lang="ts">
+	import Info from '~icons/octicon/info-16';
+	import ArrowRight from '~icons/octicon/arrow-right-16';
 	import ChevronUp from '~icons/octicon/chevron-up-16';
 	import ChevronDown from '~icons/octicon/chevron-down-16';
 	import StatusIcon from '#lib/components/StatusIcon.svelte';
@@ -326,7 +328,7 @@
 						>
 						<td class="text-right">
 							<a href="/milestones/{m.id}" class="mr-3 text-xs text-zinc-500 hover:underline"
-								>Hill Chart →</a
+								>Hill Chart <ArrowRight aria-hidden="true" class="icon" /></a
 							>
 							<button
 								class="text-xs text-zinc-400 hover:text-red-500"
@@ -589,16 +591,25 @@
 			<ol class="mt-2 list-decimal space-y-1.5 pl-5 text-zinc-700 dark:text-zinc-300">
 				<li>Create a token above and copy it (AirDrop or Notes it to your phone).</li>
 				<li>
-					On the iPhone open <b>Shortcuts</b> → <b>+</b> → name it <b>Add bug</b>. Tap the
-					<b>ⓘ</b> (or the name) → turn on <b>Show in Share Sheet</b>, and set it to receive
+					On the iPhone open <b>Shortcuts</b>
+					<ArrowRight aria-hidden="true" class="icon" /> <b>+</b>
+					<ArrowRight aria-hidden="true" class="icon" /> name it <b>Add bug</b>. Tap the
+					<Info aria-hidden="true" class="icon" /> (or the name) <ArrowRight
+						aria-hidden="true"
+						class="icon"
+					/> turn on
+					<b>Show in Share Sheet</b>, and set it to receive
 					<b>Images</b>, <b>Text</b> and <b>URLs</b>. Set “If there’s no input” to <b>Continue</b>.
 				</li>
 				<li>
-					Add <b>Ask for Input</b> → type <b>Text</b>, prompt “What’s the bug?”. You can type the
-					same syntax as quick add: <code>@app !high ^v1.3 *fri</code>.
+					Add <b>Ask for Input</b>
+					<ArrowRight aria-hidden="true" class="icon" /> type <b>Text</b>, prompt “What’s the bug?”.
+					You can type the same syntax as quick add: <code>@app !high ^v1.3 *fri</code>.
 				</li>
 				<li>
-					Add <b>Base64 Encode</b> → input <b>Shortcut Input</b>, line breaks <b>None</b>.
+					Add <b>Base64 Encode</b>
+					<ArrowRight aria-hidden="true" class="icon" /> input <b>Shortcut Input</b>, line breaks
+					<b>None</b>.
 				</li>
 				<li>
 					Add <b>Get Contents of URL</b>:
@@ -621,7 +632,9 @@
 					</ul>
 				</li>
 				<li>
-					Add <b>Get Dictionary Value</b> → key <code>message</code>, then <b>Show Notification</b>
+					Add <b>Get Dictionary Value</b>
+					<ArrowRight aria-hidden="true" class="icon" /> key <code>message</code>, then
+					<b>Show Notification</b>
 					with that value (it says e.g. “Added #42”).
 				</li>
 			</ol>

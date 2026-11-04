@@ -1,4 +1,6 @@
 <script lang="ts">
+	import CheckCircle from '~icons/octicon/check-circle-16';
+	import ArrowRight from '~icons/octicon/arrow-right-16';
 	import StatusIcon from '#lib/components/StatusIcon.svelte';
 	import Milestone from '~icons/octicon/milestone-16';
 	import Blocked from '~icons/octicon/blocked-16';
@@ -58,7 +60,9 @@
 	<div class="mb-2 flex items-baseline gap-2">
 		<h2 class="text-xs font-medium tracking-wide text-zinc-500 uppercase">{title}</h2>
 		{#if extra}<span class="text-xs text-zinc-400">{extra}</span>{/if}
-		{#if href}<a {href} class="ml-auto text-xs text-zinc-400 hover:underline">all →</a>{/if}
+		{#if href}<a {href} class="ml-auto text-xs text-zinc-400 hover:underline"
+				>all <ArrowRight aria-hidden="true" class="icon" /></a
+			>{/if}
 	</div>
 {/snippet}
 
@@ -119,7 +123,9 @@
 					{#each data.upNext as i (i.id)}{@render row(i)}{/each}
 				</ul>
 			{:else}
-				<p class="py-2 text-zinc-400">Nothing waiting. 🎉</p>
+				<p class="py-2 text-zinc-400">
+					<CheckCircle aria-hidden="true" class="icon" /> Nothing waiting.
+				</p>
 			{/if}
 		</div>
 	</section>
@@ -133,7 +139,10 @@
 		>
 			{@render card('Fires')}
 			{#if calm}
-				<p class="text-zinc-400">✓ Nothing urgent — no production bugs, overdue or blocked work.</p>
+				<p class="text-zinc-400">
+					<CheckCircle aria-hidden="true" class="icon" /> Nothing urgent — no production bugs, overdue
+					or blocked work.
+				</p>
 			{:else}
 				<ul class="space-y-1">
 					{#each fireRows as r (r.label)}
@@ -184,11 +193,15 @@
 				<Milestone aria-hidden="true" class="icon mr-0.5" />Next milestone
 			</h2>
 			<a href="/milestones/{next.id}" class="font-semibold hover:underline">{next.name}</a>
-			<a href="/milestones/{next.id}" class="text-xs text-zinc-500 hover:underline">Hill Chart →</a>
+			<a href="/milestones/{next.id}" class="text-xs text-zinc-500 hover:underline"
+				>Hill Chart <ArrowRight aria-hidden="true" class="icon" /></a
+			>
 			{#if next.dueDate}<span class="text-xs {late ? 'text-red-500' : 'text-zinc-500'}"
 					>{dueText(next.dueDate)}</span
 				>{/if}
-			<a href="/settings" class="ml-auto text-xs text-zinc-400 hover:underline">manage →</a>
+			<a href="/settings" class="ml-auto text-xs text-zinc-400 hover:underline"
+				>manage <ArrowRight aria-hidden="true" class="icon" /></a
+			>
 		</div>
 		<div class="flex flex-wrap items-center gap-x-3 gap-y-1">
 			<span class="h-2.5 min-w-40 flex-1 overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
@@ -282,7 +295,10 @@
 	{/each}
 	{#if f.stale}
 		<a href="/?sort=updated&dir=asc" class="ml-auto text-xs text-zinc-500 hover:underline"
-			>{f.stale} open issue{f.stale === 1 ? '' : 's'} untouched for 30+ days →</a
+			>{f.stale} open issue{f.stale === 1 ? '' : 's'} untouched for 30+ days <ArrowRight
+				aria-hidden="true"
+				class="icon"
+			/></a
 		>
 	{/if}
 </section>
