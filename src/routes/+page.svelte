@@ -1,4 +1,9 @@
 <script lang="ts">
+	import type { Snippet } from 'svelte';
+	import MoveToEnd from '~icons/octicon/move-to-end-16';
+	import MoveToStart from '~icons/octicon/move-to-start-16';
+	import ArrowLeft from '~icons/octicon/arrow-left-16';
+	import ArrowRight from '~icons/octicon/arrow-right-16';
 	import X from '~icons/octicon/x-16';
 	import TriangleDown from '~icons/octicon/triangle-down-16';
 	import SortAsc from '~icons/octicon/sort-asc-16';
@@ -300,7 +305,8 @@
 
 <div class="mb-2 flex justify-end">
 	<a href="/dashboard#today" class="text-xs text-amber-700 hover:underline dark:text-amber-400">
-		<StarFill aria-hidden="true" /> Today · {data.todayIds.length} →
+		<StarFill aria-hidden="true" /> Today · {data.todayIds.length}
+		<ArrowRight aria-hidden="true" class="icon" />
 	</a>
 </div>
 
@@ -537,7 +543,7 @@
 	{/if}
 	{#if filters.milestone && filters.milestone !== 'none'}
 		<a href="/milestones/{filters.milestone}" class="text-xs text-zinc-500 hover:underline"
-			>Milestone Hill Chart →</a
+			>Milestone Hill Chart <ArrowRight aria-hidden="true" class="icon" /></a
 		>
 	{/if}
 	{#if filters.dueWeek}{@render activeChip('Due this week', { dueWeek: false })}{/if}
@@ -968,17 +974,21 @@
 {#if pages > 1}
 	<nav class="mt-3 flex items-center justify-end gap-2 text-zinc-500">
 		<span class="mr-auto text-zinc-400">{count}</span>
-		{#snippet pageLink(label: string, n: number)}
+		{#snippet pageLink(label: Snippet, n: number)}
 			{#if n >= 1 && n <= pages && n !== filters.page}
-				<a href={pageUrl(n)} class="btn">{label}</a>
+				<a href={pageUrl(n)} class="btn">{@render label()}</a>
 			{:else}
-				<span class="btn pointer-events-none opacity-40">{label}</span>
+				<span class="btn pointer-events-none opacity-40">{@render label()}</span>
 			{/if}
 		{/snippet}
-		{@render pageLink('« First', 1)}
-		{@render pageLink('← Prev', filters.page - 1)}
+		{#snippet first()}<MoveToStart aria-hidden="true" class="icon" /> First{/snippet}
+		{#snippet prev()}<ArrowLeft aria-hidden="true" class="icon" /> Prev{/snippet}
+		{#snippet next()}Next <ArrowRight aria-hidden="true" class="icon" />{/snippet}
+		{#snippet last()}Last <MoveToEnd aria-hidden="true" class="icon" />{/snippet}
+		{@render pageLink(first, 1)}
+		{@render pageLink(prev, filters.page - 1)}
 		<span class="px-1">Page {Math.min(filters.page, pages)} of {pages}</span>
-		{@render pageLink('Next →', filters.page + 1)}
-		{@render pageLink('Last »', pages)}
+		{@render pageLink(next, filters.page + 1)}
+		{@render pageLink(last, pages)}
 	</nav>
 {/if}

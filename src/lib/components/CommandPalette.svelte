@@ -1,4 +1,7 @@
 <script lang="ts">
+	import ChevronRight from '~icons/octicon/chevron-right-16';
+	import ArrowDown from '~icons/octicon/arrow-down-16';
+	import ArrowUp from '~icons/octicon/arrow-up-16';
 	import Search from '~icons/octicon/search-16';
 	import { onMount, tick } from 'svelte';
 	import { goto } from '$app/navigation';
@@ -332,7 +335,7 @@
 			>
 				{#if option.color}<span class="size-2 shrink-0 rounded-full" style:background={option.color}
 					></span>{:else}<span class="w-2 shrink-0 text-zinc-400" aria-hidden="true"
-						>{option.create ? '+' : '›'}</span
+						>{#if option.create}+{:else}<ChevronRight aria-hidden="true" class="icon" />{/if}</span
 					>{/if}
 				<span class="min-w-0 flex-1"
 					><span class="block truncate text-sm">{option.label}</span><span
@@ -362,6 +365,9 @@
 	<div
 		class="flex gap-3 border-t border-zinc-200 px-4 py-2 text-[11px] text-zinc-500 dark:border-zinc-800"
 	>
-		<span>↑ ↓ navigate</span><span>↵ open</span><span class="ml-auto">Esc close</span>
+		<span
+			><ArrowUp aria-hidden="true" class="icon" />
+			<ArrowDown aria-hidden="true" class="icon" /> navigate</span
+		><span>↵ open</span><span class="ml-auto">Esc close</span>
 	</div>
 </dialog>

@@ -1,4 +1,6 @@
 <script lang="ts">
+	import ArrowLeft from '~icons/octicon/arrow-left-16';
+	import ArrowRight from '~icons/octicon/arrow-right-16';
 	import Trash from '~icons/octicon/trash-16';
 	import { api } from '#lib/api.ts';
 	import { ago, fullDate } from '#lib/format.ts';
@@ -104,12 +106,13 @@
 
 {#if data.page > 1 || data.total > data.pageSize}
 	<nav class="mt-4 flex items-center gap-3 text-sm" aria-label="Trash pages">
-		{#if data.page > 1}<a class="hover:underline" href="/trash?page={data.page - 1}">← Newer</a
+		{#if data.page > 1}<a class="hover:underline" href="/trash?page={data.page - 1}"
+				><ArrowLeft aria-hidden="true" class="icon" /> Newer</a
 			>{/if}
 		<span class="text-zinc-500">Page {data.page}</span>
 		{#if data.total > data.page * data.pageSize}<a
 				class="hover:underline"
-				href="/trash?page={data.page + 1}">Older →</a
+				href="/trash?page={data.page + 1}">Older <ArrowRight aria-hidden="true" class="icon" /></a
 			>{/if}
 	</nav>
 {/if}
