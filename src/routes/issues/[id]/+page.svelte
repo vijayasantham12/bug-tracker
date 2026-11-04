@@ -101,6 +101,20 @@
 	// so these count as saved even though the refreshed issue hasn't arrived yet
 	const sent = { title: '', description: '' };
 
+	// grow the title textarea to fit its wrapped text; re-runs whenever `title` changes
+	// (typing, save/reset, navigating to another issue) and on width changes
+	function fitTitle(node: HTMLTextAreaElement) {
+		void title;
+		const fit = () => {
+			node.style.height = 'auto';
+			node.style.height = `${node.scrollHeight}px`;
+		};
+		fit();
+		const ro = new ResizeObserver(fit);
+		ro.observe(node);
+		return () => ro.disconnect();
+	}
+
 	function saveTitle() {
 		title = title.trim() || title;
 		sent.title = title;
@@ -633,13 +647,23 @@
 						class="icon size-3 opacity-50 group-hover/id:opacity-100"
 					/>{/if}
 			</button>
-			<input
+			<!-- textarea (not input) so long titles wrap; Enter still saves, newlines are stripped -->
+			<textarea
 				data-key="E"
+				rows="1"
+				aria-label="Title"
 				bind:value={title}
 				onblur={saveTitle}
-				onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-				class="w-full rounded bg-transparent px-1 text-lg font-semibold outline-none hover:bg-zinc-50 focus:bg-zinc-50 dark:hover:bg-zinc-900 dark:focus:bg-zinc-900"
-			/>
+				oninput={(e) => (title = e.currentTarget.value.replace(/[\r\n]+/g, ' '))}
+				onkeydown={(e) => {
+					if (e.key === 'Enter') {
+						e.preventDefault();
+						e.currentTarget.blur();
+					}
+				}}
+				{@attach fitTitle}
+				class="w-full resize-none overflow-hidden rounded bg-transparent px-1 text-lg leading-snug font-semibold outline-none hover:bg-zinc-50 focus:bg-zinc-50 dark:hover:bg-zinc-900 dark:focus:bg-zinc-900"
+			></textarea>
 			<details class="relative shrink-0 self-center" bind:this={menu}>
 				<summary
 					class="cursor-pointer list-none rounded px-2 text-lg leading-6 text-zinc-400 select-none hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-zinc-900 dark:hover:text-zinc-200"
