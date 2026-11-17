@@ -259,7 +259,7 @@
 <dialog
 	bind:this={dialog}
 	aria-labelledby="command-title"
-	class="fixed inset-x-0 top-[min(15vh,6rem)] m-0 mx-auto w-[calc(100%-2rem)] max-w-xl overflow-hidden rounded-xl border border-zinc-200 bg-white p-0 text-zinc-800 shadow-2xl backdrop:bg-zinc-950/40 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200"
+	class="fixed inset-x-0 top-[calc(env(safe-area-inset-top)+0.5rem)] m-0 mx-auto w-[calc(100%-1rem)] max-w-xl overflow-hidden rounded-xl border border-zinc-200 bg-white p-0 text-zinc-800 shadow-2xl backdrop:bg-zinc-950/40 md:top-[min(15vh,6rem)] md:w-[calc(100%-2rem)] dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200"
 	onkeydown={onKey}
 	oncancel={(event) => {
 		event.preventDefault();
@@ -296,13 +296,20 @@
 			spellcheck="false"
 			maxlength="200"
 			placeholder="Search issues, apps, or commands…"
-			class="min-w-0 flex-1 bg-transparent py-4 outline-none"
+			type="search"
+			enterkeyhint="go"
+			class="min-w-0 flex-1 appearance-none bg-transparent py-4 outline-none"
 		/>
 		<button
 			type="button"
-			class="kbd py-0.5 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+			class="kbd py-0.5 hover:bg-zinc-100 max-md:hidden dark:hover:bg-zinc-800"
 			aria-label="Close command palette"
 			onclick={onclose}>Esc</button
+		>
+		<button
+			type="button"
+			class="-mr-1 px-1 py-2 text-sm text-blue-600 md:hidden dark:text-blue-400"
+			onclick={onclose}>Cancel</button
 		>
 	</div>
 	<div
@@ -310,7 +317,7 @@
 		role="listbox"
 		tabindex="-1"
 		aria-label="Results"
-		class="max-h-[min(55dvh,26rem)] overflow-y-auto overscroll-contain p-2"
+		class="max-h-[calc(100dvh-var(--kb)-env(safe-area-inset-top)-6rem)] overflow-y-auto overscroll-contain p-2 md:max-h-[min(55dvh,26rem)]"
 	>
 		{#each options as option, index (option.id)}
 			{#if index === 0 || options[index - 1].group !== option.group}<div
@@ -363,7 +370,7 @@
 			No matching issues.
 		</p>{/if}
 	<div
-		class="flex gap-3 border-t border-zinc-200 px-4 py-2 text-[11px] text-zinc-500 dark:border-zinc-800"
+		class="flex gap-3 border-t border-zinc-200 px-4 py-2 text-[11px] text-zinc-500 max-md:hidden dark:border-zinc-800"
 	>
 		<span
 			><ArrowUp aria-hidden="true" class="icon" />

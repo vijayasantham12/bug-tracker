@@ -173,10 +173,11 @@
 	ondrop={(e) => addFiles(e.dataTransfer, e)}
 	class="rounded-md border border-zinc-300 focus-within:border-zinc-500 dark:border-zinc-700 dark:focus-within:border-zinc-500"
 >
-	<div class="flex items-start gap-2 p-1.5">
+	<!-- phones: the text box gets its own full-width row, the pickers and Add go underneath -->
+	<div class="flex flex-wrap items-start gap-2 p-1.5 md:flex-nowrap">
 		<select
 			bind:value={defaultType}
-			class="cell-select mx-0 py-1 {TYPE_CLASS[defaultType]}"
+			class="cell-select mx-0 py-1 max-md:order-2 {TYPE_CLASS[defaultType]}"
 			title="Default type"
 		>
 			{#each TYPES as t (t)}<option value={t} class={TYPE_CLASS[t]}>{TYPE_LABEL[t]}</option>{/each}
@@ -188,19 +189,24 @@
 			oninput={autosize}
 			onpaste={(e) => addFiles(e.clipboardData, e)}
 			rows="1"
+			enterkeyhint="send"
 			placeholder="Quick add… e.g.  checkout crashes on safari @shop !high +payments -- steps here"
-			class="min-h-7 flex-1 resize-none bg-transparent px-1 py-1 outline-none placeholder:text-zinc-400"
+			class="min-h-7 flex-1 resize-none bg-transparent px-1 py-1 outline-none placeholder:text-zinc-400 max-md:order-1 max-md:basis-full"
 		></textarea>
 		<select
 			bind:value={defaultApp}
-			class="cell-select mx-0 max-w-40 py-1 text-zinc-500"
+			class="cell-select mx-0 max-w-40 py-1 text-zinc-500 max-md:order-3"
 			title="Default app (when no @app)"
 		>
 			<option value="">Inbox (no app)</option>
 			{#each apps.filter((a) => !a.archived) as a (a.id)}<option value={a.name}>{a.name}</option
 				>{/each}
 		</select>
-		<button class="btn-primary" disabled={!parsed.length || busy} onclick={submit}>
+		<button
+			class="btn-primary max-md:order-4 max-md:ml-auto"
+			disabled={!parsed.length || busy}
+			onclick={submit}
+		>
 			Add{parsed.length > 1 ? ` ${parsed.length}` : ''}
 		</button>
 	</div>
@@ -273,7 +279,11 @@
 		</ul>
 	{/if}
 </div>
-<p class="mt-1 text-xs text-zinc-400">
+<p class="mt-1.5 text-xs text-zinc-400 md:hidden">
+	<code>@app</code> <code>!high</code> <code>+label</code> <code>^milestone</code> <code>*fri</code>
+	<code>-- description</code>
+</p>
+<p class="mt-1 text-xs text-zinc-400 max-md:hidden">
 	<span class="kbd">Enter</span> add · <span class="kbd">Shift+Enter</span> one issue per line ·
 	<code>@app</code> (repeat for several apps) · <code>!urgent !high !low</code> or <code>!0–3</code>
 	·

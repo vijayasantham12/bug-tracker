@@ -406,6 +406,8 @@
 	// single-key shortcuts; `?` lists them. Elements tagged data-key="…" are focused,
 	// opened (selects) or clicked (buttons). Runs before the layout's n/m handler.
 	let showShortcuts = $state(false);
+	// phones: the property list folds up under the title
+	let propsOpen = $state(false);
 	const SHORTCUTS: [string, string][] = [
 		['e', 'Edit description'],
 		['E', 'Edit title'],
@@ -604,7 +606,7 @@
 	<a href={nav.listUrl} class="inline-flex items-center gap-1 hover:underline"
 		><ArrowLeft aria-hidden="true" class="icon size-4" />Issues</a
 	>
-	<span class="text-xs text-zinc-400"
+	<span class="text-xs text-zinc-400 max-md:hidden"
 		><span class="kbd">Esc</span> back ·
 		<button class="hover:underline" onclick={() => (showShortcuts = true)}
 			><span class="kbd">?</span> shortcuts</button
@@ -617,8 +619,11 @@
 	{/if}
 </div>
 
-<div class="grid gap-6 md:grid-cols-[1fr_16rem]">
-	<section class="min-w-0">
+<!-- desktop: title + body on the left, properties on the right; phones: title, properties, body -->
+<div
+	class="grid grid-cols-[minmax(0,1fr)] gap-y-3 md:grid-cols-[minmax(0,1fr)_16rem] md:grid-rows-[auto_1fr] md:gap-x-6 md:gap-y-0"
+>
+	<section class="min-w-0 md:col-start-1 md:row-start-1">
 		{#if data.parent}
 			<a
 				href="/issues/{data.parent.id}"
@@ -693,8 +698,10 @@
 				</div>
 			</details>
 		</div>
+	</section>
 
-		<div class="mt-3">
+	<section class="min-w-0 md:col-start-1 md:row-start-2">
+		<div class="md:mt-3">
 			{#if editing || !description.trim()}
 				<textarea
 					bind:this={descriptionInput}
@@ -1178,247 +1185,279 @@
 		</div>
 	</section>
 
-	<aside class="text-sm">
-		<!-- every property gets an icon so the labels line up; Status/Type/Priority icons follow the value -->
-		{#snippet label(text: string, Icon: typeof Bell)}
-			<span class="flex items-center gap-1.5 truncate text-xs text-zinc-500"
-				><Icon aria-hidden="true" class="icon text-zinc-400 dark:text-zinc-600" />{text}</span
-			>
-		{/snippet}
-		{#snippet valueLabel(text: string, icon: Snippet)}
-			<span class="flex items-center gap-1.5 truncate text-xs text-zinc-500"
-				>{@render icon()}{text}</span
-			>
-		{/snippet}
-		{#snippet divider()}
-			<div class="col-span-2 my-1.5 border-t border-zinc-100 dark:border-zinc-900"></div>
-		{/snippet}
-		<div class="grid grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-x-1">
-			{#snippet statusIcon()}<StatusIcon {status} />{/snippet}
-			{@render valueLabel('Status', statusIcon)}
-			<select
-				data-key="s"
-				class="prop"
-				style="color:{status?.color}"
-				value={issue.statusId}
-				onchange={(e) => save({ statusId: Number(e.currentTarget.value) })}
-			>
-				{#each data.statuses as s (s.id)}<option value={s.id} style="color:{s.color}"
-						>{s.name}</option
-					>{/each}
-			</select>
-			{#snippet priorityIcon()}<PriorityIcon priority={issue.priority} />{/snippet}
-			{@render valueLabel('Priority', priorityIcon)}
-			<select
-				data-key="p"
-				class="prop {PRIORITY_CLASS[issue.priority]}"
-				value={issue.priority}
-				onchange={(e) => save({ priority: Number(e.currentTarget.value) })}
-			>
-				{#each PRIORITIES as p (p.value)}<option value={p.value} class={PRIORITY_CLASS[p.value]}
-						>{p.label}</option
-					>{/each}
-			</select>
-			{#snippet typeIcon()}<TypeIcon type={issue.type} class={TYPE_CLASS[issue.type]} />{/snippet}
-			{@render valueLabel('Type', typeIcon)}
-			<select
-				data-key="t"
-				class="prop {TYPE_CLASS[issue.type]}"
-				value={issue.type}
-				onchange={(e) => save({ type: e.currentTarget.value as never })}
-			>
-				{#each TYPES as t (t)}<option value={t} class={TYPE_CLASS[t]}>{TYPE_LABEL[t]}</option
-					>{/each}
-			</select>
-			{@render label('App', Repo)}
-			<select
-				class="prop"
-				value={issue.appId ?? ''}
-				onchange={(e) =>
-					save({ appId: e.currentTarget.value ? Number(e.currentTarget.value) : null })}
-			>
-				<option value="">Inbox (no app)</option>
-				{#each data.apps as a (a.id)}<option value={a.id}>{a.name}</option>{/each}
-			</select>
-
-			{@render divider()}
-
-			{@render label('Milestone', Milestone)}
-			<select
-				data-key="m"
-				class="prop {faint(!issue.milestoneId)}"
-				value={issue.milestoneId ?? ''}
-				onchange={(e) => chooseMilestone(e.currentTarget)}
-			>
-				<option value="">—</option>
-				{#each data.milestones.filter((m) => !m.done || m.id === issue.milestoneId) as m (m.id)}<option
-						value={m.id}>{m.name}</option
-					>{/each}
-				<option value="new">+ New milestone…</option>
-			</select>
-			{@render label('Size', Stack)}
-			<select
-				class="prop uppercase {faint(!issue.size)}"
-				value={issue.size ?? ''}
-				onchange={(e) => save({ size: (e.currentTarget.value || null) as never })}
-			>
-				<option value="">—</option>
-				{#each SIZES as sz (sz)}<option value={sz}>{sz.toUpperCase()}</option>{/each}
-			</select>
-			{@render label('Due', Calendar)}
-			<!-- empty: a text field showing "—" that turns into a date picker on focus -->
-			<input
-				data-key="d"
-				type={issue.dueDate ? 'date' : 'text'}
-				class="prop"
-				value={issue.dueDate ?? ''}
-				placeholder="—"
-				onfocus={(e) => {
-					if (e.currentTarget.type === 'date') return;
-					e.currentTarget.type = 'date';
-					try {
-						e.currentTarget.showPicker();
-					} catch {
-						// not supported or not allowed: the native field still works
-					}
-				}}
-				onblur={(e) => !e.currentTarget.value && (e.currentTarget.type = 'text')}
-				onchange={(e) => save({ dueDate: e.currentTarget.value || null })}
+	<aside class="text-sm md:col-start-2 md:row-span-2 md:row-start-1">
+		<button
+			type="button"
+			class="pressable flex w-full items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2.5 text-left md:hidden dark:border-zinc-800"
+			aria-expanded={propsOpen}
+			aria-controls="issue-props"
+			onclick={() => (propsOpen = !propsOpen)}
+		>
+			<span class="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+				<span style="color:{status?.color}"><StatusIcon {status} /> {status?.name}</span>
+				<span class={PRIORITY_CLASS[issue.priority]}
+					><PriorityIcon priority={issue.priority} />
+					{PRIORITIES.find((p) => p.value === issue.priority)?.label}</span
+				>
+				<span class={TYPE_CLASS[issue.type]}
+					><TypeIcon type={issue.type} /> {TYPE_LABEL[issue.type]}</span
+				>
+				<span class="text-zinc-500"
+					>{data.apps.find((a) => a.id === issue.appId)?.name ?? 'Inbox'}</span
+				>
+				{#if issue.dueDate}<span class="text-zinc-500"
+						><Calendar aria-hidden="true" /> {issue.dueDate}</span
+					>{/if}
+			</span>
+			<span class="text-xs text-zinc-400">{propsOpen ? 'Less' : 'Details'}</span>
+			<ChevronDown
+				aria-hidden="true"
+				class="icon text-zinc-400 transition-transform {propsOpen ? 'rotate-180' : ''}"
 			/>
-			{@render label('Repeat', Sync)}
-			<select
-				class="prop {faint(!issue.repeat)}"
-				value={issue.repeat ?? ''}
-				title="Closing it creates the next one, due one interval later"
-				onchange={(e) => save({ repeat: (e.currentTarget.value || null) as never })}
-			>
-				<option value="">—</option>
-				{#each REPEATS as r (r.value)}<option value={r.value}>↻ {r.label}</option>{/each}
-			</select>
-			{@render label('Remind me', Bell)}
-			{#if issue.remindAt && !pickingReminder}
-				<span class="flex min-w-0 items-center gap-1 px-1.5 py-1">
-					<span class="truncate" title="You’ll get a notification then"
-						><Bell aria-hidden="true" /> {reminderText(issue.remindAt)}</span
-					>
-					<button
-						class="ml-auto text-xs text-zinc-400 hover:text-red-500"
-						title="Remove reminder"
-						onclick={() => setReminder(null)}><X aria-hidden="true" /></button
-					>
-				</span>
-			{:else if pickingReminder}
-				<input
-					type="datetime-local"
-					class="prop"
-					{@attach (el: HTMLInputElement) => el.focus()}
-					onchange={(e) => e.currentTarget.value && setReminder(new Date(e.currentTarget.value))}
-					onblur={() => (pickingReminder = false)}
-				/>
-			{:else}
+		</button>
+		<div id="issue-props" class="max-md:mt-2 {propsOpen ? '' : 'max-md:hidden'}">
+			<!-- every property gets an icon so the labels line up; Status/Type/Priority icons follow the value -->
+			{#snippet label(text: string, Icon: typeof Bell)}
+				<span class="flex items-center gap-1.5 truncate text-xs text-zinc-500"
+					><Icon aria-hidden="true" class="icon text-zinc-400 dark:text-zinc-600" />{text}</span
+				>
+			{/snippet}
+			{#snippet valueLabel(text: string, icon: Snippet)}
+				<span class="flex items-center gap-1.5 truncate text-xs text-zinc-500"
+					>{@render icon()}{text}</span
+				>
+			{/snippet}
+			{#snippet divider()}
+				<div class="col-span-2 my-1.5 border-t border-zinc-100 dark:border-zinc-900"></div>
+			{/snippet}
+			<div class="grid grid-cols-[5.5rem_minmax(0,1fr)] items-center gap-x-1">
+				{#snippet statusIcon()}<StatusIcon {status} />{/snippet}
+				{@render valueLabel('Status', statusIcon)}
 				<select
-					class="prop {faint(true)}"
-					value=""
-					onchange={(e) => {
-						const v = e.currentTarget.value;
-						e.currentTarget.value = '';
-						if (v === 'pick') pickingReminder = true;
-						else if (v) setReminder(REMINDER_PRESETS[Number(v)].at());
+					data-key="s"
+					class="prop"
+					style="color:{status?.color}"
+					value={issue.statusId}
+					onchange={(e) => save({ statusId: Number(e.currentTarget.value) })}
+				>
+					{#each data.statuses as s (s.id)}<option value={s.id} style="color:{s.color}"
+							>{s.name}</option
+						>{/each}
+				</select>
+				{#snippet priorityIcon()}<PriorityIcon priority={issue.priority} />{/snippet}
+				{@render valueLabel('Priority', priorityIcon)}
+				<select
+					data-key="p"
+					class="prop {PRIORITY_CLASS[issue.priority]}"
+					value={issue.priority}
+					onchange={(e) => save({ priority: Number(e.currentTarget.value) })}
+				>
+					{#each PRIORITIES as p (p.value)}<option value={p.value} class={PRIORITY_CLASS[p.value]}
+							>{p.label}</option
+						>{/each}
+				</select>
+				{#snippet typeIcon()}<TypeIcon type={issue.type} class={TYPE_CLASS[issue.type]} />{/snippet}
+				{@render valueLabel('Type', typeIcon)}
+				<select
+					data-key="t"
+					class="prop {TYPE_CLASS[issue.type]}"
+					value={issue.type}
+					onchange={(e) => save({ type: e.currentTarget.value as never })}
+				>
+					{#each TYPES as t (t)}<option value={t} class={TYPE_CLASS[t]}>{TYPE_LABEL[t]}</option
+						>{/each}
+				</select>
+				{@render label('App', Repo)}
+				<select
+					class="prop"
+					value={issue.appId ?? ''}
+					onchange={(e) =>
+						save({ appId: e.currentTarget.value ? Number(e.currentTarget.value) : null })}
+				>
+					<option value="">Inbox (no app)</option>
+					{#each data.apps as a (a.id)}<option value={a.id}>{a.name}</option>{/each}
+				</select>
+
+				{@render divider()}
+
+				{@render label('Milestone', Milestone)}
+				<select
+					data-key="m"
+					class="prop {faint(!issue.milestoneId)}"
+					value={issue.milestoneId ?? ''}
+					onchange={(e) => chooseMilestone(e.currentTarget)}
+				>
+					<option value="">—</option>
+					{#each data.milestones.filter((m) => !m.done || m.id === issue.milestoneId) as m (m.id)}<option
+							value={m.id}>{m.name}</option
+						>{/each}
+					<option value="new">+ New milestone…</option>
+				</select>
+				{@render label('Size', Stack)}
+				<select
+					class="prop uppercase {faint(!issue.size)}"
+					value={issue.size ?? ''}
+					onchange={(e) => save({ size: (e.currentTarget.value || null) as never })}
+				>
+					<option value="">—</option>
+					{#each SIZES as sz (sz)}<option value={sz}>{sz.toUpperCase()}</option>{/each}
+				</select>
+				{@render label('Due', Calendar)}
+				<!-- empty: a text field showing "—" that turns into a date picker on focus -->
+				<input
+					data-key="d"
+					type={issue.dueDate ? 'date' : 'text'}
+					class="prop"
+					value={issue.dueDate ?? ''}
+					placeholder="—"
+					onfocus={(e) => {
+						if (e.currentTarget.type === 'date') return;
+						e.currentTarget.type = 'date';
+						try {
+							e.currentTarget.showPicker();
+						} catch {
+							// not supported or not allowed: the native field still works
+						}
 					}}
-				>
-					<option value="">—</option>
-					{#each REMINDER_PRESETS as p, i (p.label)}<option value={String(i)}>{p.label}</option
-						>{/each}
-					<option value="pick">Pick a time…</option>
-				</select>
-			{/if}
-			{@render label('Parent', IssueTrackedBy)}
-			<input
-				class="prop disabled:cursor-not-allowed"
-				value={issue.parentId ? `#${issue.parentId}` : ''}
-				onchange={(e) => setParent(e.currentTarget)}
-				onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-				disabled={data.subtasks.length > 0}
-				title={data.subtasks.length
-					? 'Has subtasks, so it can’t be a subtask itself'
-					: '#12 makes this a subtask of #12'}
-				placeholder={data.subtasks.length ? 'has subtasks' : '—'}
-			/>
-
-			{@render divider()}
-
-			{#if issue.type === 'bug' || issue.severity}
-				{@render label('Severity', Alert)}
+					onblur={(e) => !e.currentTarget.value && (e.currentTarget.type = 'text')}
+					onchange={(e) => save({ dueDate: e.currentTarget.value || null })}
+				/>
+				{@render label('Repeat', Sync)}
 				<select
-					class="prop {issue.severity ? SEVERITY_CLASS[issue.severity] : faint(true)}"
-					value={issue.severity ?? ''}
-					onchange={(e) => save({ severity: (e.currentTarget.value || null) as never })}
+					class="prop {faint(!issue.repeat)}"
+					value={issue.repeat ?? ''}
+					title="Closing it creates the next one, due one interval later"
+					onchange={(e) => save({ repeat: (e.currentTarget.value || null) as never })}
 				>
 					<option value="">—</option>
-					{#each SEVERITIES as sv (sv.value)}<option
-							value={sv.value}
-							class={SEVERITY_CLASS[sv.value]}>{sv.label}</option
-						>{/each}
+					{#each REPEATS as r (r.value)}<option value={r.value}>↻ {r.label}</option>{/each}
 				</select>
-			{/if}
-			{#if issue.type === 'bug' || issue.environment}
-				{@render label('Environment', Server)}
-				<select
-					class="prop {issue.environment ? ENV_CLASS[issue.environment] : faint(true)}"
-					value={issue.environment ?? ''}
-					onchange={(e) => save({ environment: (e.currentTarget.value || null) as never })}
-				>
-					<option value="">—</option>
-					{#each ENVIRONMENTS as en (en.value)}<option value={en.value} class={ENV_CLASS[en.value]}
-							>{en.label}</option
-						>{/each}
-				</select>
-			{/if}
-			{#if issue.type === 'bug' || issue.version}
-				{@render label('Found in', Versions)}
+				{@render label('Remind me', Bell)}
+				{#if issue.remindAt && !pickingReminder}
+					<span class="flex min-w-0 items-center gap-1 px-1.5 py-1">
+						<span class="truncate" title="You’ll get a notification then"
+							><Bell aria-hidden="true" /> {reminderText(issue.remindAt)}</span
+						>
+						<button
+							class="ml-auto text-xs text-zinc-400 hover:text-red-500"
+							title="Remove reminder"
+							onclick={() => setReminder(null)}><X aria-hidden="true" /></button
+						>
+					</span>
+				{:else if pickingReminder}
+					<input
+						type="datetime-local"
+						class="prop"
+						{@attach (el: HTMLInputElement) => el.focus()}
+						onchange={(e) => e.currentTarget.value && setReminder(new Date(e.currentTarget.value))}
+						onblur={() => (pickingReminder = false)}
+					/>
+				{:else}
+					<select
+						class="prop {faint(true)}"
+						value=""
+						onchange={(e) => {
+							const v = e.currentTarget.value;
+							e.currentTarget.value = '';
+							if (v === 'pick') pickingReminder = true;
+							else if (v) setReminder(REMINDER_PRESETS[Number(v)].at());
+						}}
+					>
+						<option value="">—</option>
+						{#each REMINDER_PRESETS as p, i (p.label)}<option value={String(i)}>{p.label}</option
+							>{/each}
+						<option value="pick">Pick a time…</option>
+					</select>
+				{/if}
+				{@render label('Parent', IssueTrackedBy)}
+				<input
+					class="prop disabled:cursor-not-allowed"
+					value={issue.parentId ? `#${issue.parentId}` : ''}
+					onchange={(e) => setParent(e.currentTarget)}
+					onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+					disabled={data.subtasks.length > 0}
+					title={data.subtasks.length
+						? 'Has subtasks, so it can’t be a subtask itself'
+						: '#12 makes this a subtask of #12'}
+					placeholder={data.subtasks.length ? 'has subtasks' : '—'}
+				/>
+
+				{@render divider()}
+
+				{#if issue.type === 'bug' || issue.severity}
+					{@render label('Severity', Alert)}
+					<select
+						class="prop {issue.severity ? SEVERITY_CLASS[issue.severity] : faint(true)}"
+						value={issue.severity ?? ''}
+						onchange={(e) => save({ severity: (e.currentTarget.value || null) as never })}
+					>
+						<option value="">—</option>
+						{#each SEVERITIES as sv (sv.value)}<option
+								value={sv.value}
+								class={SEVERITY_CLASS[sv.value]}>{sv.label}</option
+							>{/each}
+					</select>
+				{/if}
+				{#if issue.type === 'bug' || issue.environment}
+					{@render label('Environment', Server)}
+					<select
+						class="prop {issue.environment ? ENV_CLASS[issue.environment] : faint(true)}"
+						value={issue.environment ?? ''}
+						onchange={(e) => save({ environment: (e.currentTarget.value || null) as never })}
+					>
+						<option value="">—</option>
+						{#each ENVIRONMENTS as en (en.value)}<option
+								value={en.value}
+								class={ENV_CLASS[en.value]}>{en.label}</option
+							>{/each}
+					</select>
+				{/if}
+				{#if issue.type === 'bug' || issue.version}
+					{@render label('Found in', Versions)}
+					<input
+						class="prop"
+						value={issue.version ?? ''}
+						onchange={(e) => save({ version: e.currentTarget.value })}
+						onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+						placeholder="—"
+					/>
+				{/if}
+				{@render label('Fixed in', GitMerge)}
 				<input
 					class="prop"
-					value={issue.version ?? ''}
-					onchange={(e) => save({ version: e.currentTarget.value })}
+					value={issue.fixedIn ?? ''}
+					onchange={(e) => save({ fixedIn: e.currentTarget.value })}
 					onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
 					placeholder="—"
 				/>
-			{/if}
-			{@render label('Fixed in', GitMerge)}
-			<input
-				class="prop"
-				value={issue.fixedIn ?? ''}
-				onchange={(e) => save({ fixedIn: e.currentTarget.value })}
-				onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-				placeholder="—"
-			/>
 
-			{@render divider()}
+				{@render divider()}
 
-			{@render label('Labels', Tag)}
-			<input
-				data-key="l"
-				class="prop"
-				bind:value={labels}
-				onblur={saveLabels}
-				onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
-				list="labels"
-				placeholder="—"
-				title="Space separated"
-			/>
-			<datalist id="labels"
-				>{#each data.labels as l (l)}<option value={l}></option>{/each}</datalist
+				{@render label('Labels', Tag)}
+				<input
+					data-key="l"
+					class="prop"
+					bind:value={labels}
+					onblur={saveLabels}
+					onkeydown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+					list="labels"
+					placeholder="—"
+					title="Space separated"
+				/>
+				<datalist id="labels"
+					>{#each data.labels as l (l)}<option value={l}></option>{/each}</datalist
+				>
+			</div>
+
+			<dl
+				class="mt-3 space-y-0.5 border-t border-zinc-200 pt-3 text-xs text-zinc-500 dark:border-zinc-800"
 			>
+				<div title={fullDate(issue.createdAt)}>Created {ago(issue.createdAt)}</div>
+				<div title={fullDate(issue.updatedAt)}>Updated {ago(issue.updatedAt)}</div>
+				{#if issue.closedAt}<div title={fullDate(issue.closedAt)}>
+						Closed {ago(issue.closedAt)}
+					</div>{/if}
+			</dl>
 		</div>
-
-		<dl
-			class="mt-3 space-y-0.5 border-t border-zinc-200 pt-3 text-xs text-zinc-500 dark:border-zinc-800"
-		>
-			<div title={fullDate(issue.createdAt)}>Created {ago(issue.createdAt)}</div>
-			<div title={fullDate(issue.updatedAt)}>Updated {ago(issue.updatedAt)}</div>
-			{#if issue.closedAt}<div title={fullDate(issue.closedAt)}>
-					Closed {ago(issue.closedAt)}
-				</div>{/if}
-		</dl>
 	</aside>
 </div>

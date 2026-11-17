@@ -21,6 +21,7 @@
 	import Tasklist from '~icons/octicon/tasklist-16';
 	import StarFill from '~icons/octicon/star-fill-16';
 	import Bookmark from '~icons/octicon/bookmark-16';
+	import Filter from '~icons/octicon/filter-16';
 	import TypeIcon from '#lib/components/TypeIcon.svelte';
 	import { onMount } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
@@ -28,6 +29,8 @@
 	import { page } from '$app/state';
 	import QuickAdd from '#lib/components/QuickAdd.svelte';
 	import TodayToggle from '#lib/components/TodayToggle.svelte';
+	import Sheet from '#lib/components/Sheet.svelte';
+	import { swipe } from '#lib/gestures.ts';
 	import { api } from '#lib/api.ts';
 	import { notify } from '#lib/toast.svelte.ts';
 	import { nav } from '#lib/nav.svelte.ts';
@@ -36,6 +39,7 @@
 		DATE_FIELDS,
 		PAGE_SIZE,
 		parseFilters,
+		SORTS,
 		type Filters,
 		type Sort
 	} from '#lib/filters.ts';
@@ -152,6 +156,58 @@
 	}
 	async function deleteView(id: number, name: string) {
 		if (confirm(`Delete the view "${name}"?`)) await api('DELETE', `/api/views/${id}`);
+	}
+
+	// ---------- phones: filters live in a sheet, rows swipe to close / add to Today ----------
+	let filtersOpen = $state(false);
+	const filterCount = $derived(
+		[
+			filters.status !== 'open',
+			filters.types.length,
+			filters.priorities.length,
+			filters.overdue,
+			filters.dateFrom || filters.dateTo,
+			filters.label,
+			filters.milestone,
+			filters.severities.length,
+			filters.envs.length
+		].filter(Boolean).length
+	);
+	const SORT_LABEL: Record<Sort, string> = {
+		id: 'Number',
+		title: 'Title',
+		app: 'App',
+		status: 'Status',
+		priority: 'Priority',
+		type: 'Type',
+		milestone: 'Milestone',
+		size: 'Size',
+		updated: 'Updated',
+		created: 'Created'
+	};
+	const closedStatus = $derived(
+		data.statuses.filter((s) => s.isClosed).sort((a, b) => a.position - b.position)[0]
+	);
+	const openStatus = $derived(data.statuses.find((s) => s.isDefault && !s.isClosed));
+
+	async function setStatusWithUndo(id: number, from: number, to: number, verb: string) {
+		try {
+			await patchOne(id, { statusId: to });
+		} catch {
+			return; // api() already showed the error
+		}
+		notify(`${verb} #${id}`, false, {
+			label: 'Undo',
+			run: () => void patchOne(id, { statusId: from }).catch(() => {})
+		});
+	}
+	async function toggleToday(id: number, on: boolean) {
+		try {
+			await api(on ? 'DELETE' : 'POST', '/api/today', { issueId: id });
+			notify(on ? `#${id} removed from Today` : `#${id} added to Today`);
+		} catch {
+			// api() already showed the error
+		}
 	}
 
 	const pages = $derived(Math.max(1, Math.ceil(data.total / PAGE_SIZE)));
@@ -310,17 +366,22 @@
 	</a>
 </div>
 
-<QuickAdd
-	inbox={filters.inbox}
-	apps={data.apps}
-	milestones={data.milestones}
-	attachmentsEnabled={data.attachmentsEnabled}
-	{onadded}
-/>
+<!-- phones use the + tab instead -->
+<div class="max-md:hidden">
+	<QuickAdd
+		inbox={filters.inbox}
+		apps={data.apps}
+		milestones={data.milestones}
+		attachmentsEnabled={data.attachmentsEnabled}
+		{onadded}
+	/>
+</div>
 
 <!-- saved views -->
 {#if data.views.length || isFiltered}
-	<div class="mt-4 flex flex-wrap items-center gap-1.5 text-sm">
+	<div
+		class="mt-4 no-scrollbar flex flex-wrap items-center gap-1.5 text-sm max-md:-mx-4 max-md:flex-nowrap max-md:overflow-x-auto max-md:px-4 max-md:whitespace-nowrap max-md:[&>*]:shrink-0"
+	>
 		<span class="text-zinc-400">Views</span>
 		{#each data.views as v (v.id)}
 			{@const on = v.id === activeView?.id}
@@ -346,7 +407,9 @@
 {/if}
 
 <!-- apps -->
-<div class="mt-4 flex flex-wrap items-center gap-1.5">
+<div
+	class="mt-4 no-scrollbar flex flex-wrap items-center gap-1.5 max-md:-mx-4 max-md:flex-nowrap max-md:overflow-x-auto max-md:px-4 max-md:whitespace-nowrap max-md:[&>*]:shrink-0"
+>
 	<button
 		class="chip {filters.apps.length || filters.inbox
 			? ''
@@ -385,15 +448,8 @@
 	{/each}
 </div>
 
-<!-- filters -->
-<div class="mt-3 flex flex-wrap items-center gap-2">
-	<input
-		bind:this={search}
-		bind:value={q}
-		oninput={onSearch}
-		placeholder="Search title, description or #id"
-		class="input w-64"
-	/>
+<!-- filters (phones: search + a Filters button that opens them in a sheet) -->
+{#snippet filterControls()}
 	<select
 		class="input"
 		value={filters.status}
@@ -531,6 +587,29 @@
 				>{/each}
 		</select>
 	{/if}
+{/snippet}
+
+<div class="mt-3 flex flex-wrap items-center gap-2">
+	<input
+		bind:this={search}
+		bind:value={q}
+		oninput={onSearch}
+		type="search"
+		enterkeyhint="search"
+		placeholder="Search title, description or #id"
+		class="input w-64 max-md:min-w-0 max-md:flex-1"
+	/>
+	<button
+		type="button"
+		class="btn inline-flex items-center gap-1.5 md:hidden"
+		aria-haspopup="dialog"
+		onclick={() => (filtersOpen = true)}
+		><Filter aria-hidden="true" class="icon" />Filters{#if filterCount}<span
+				class="rounded-full bg-zinc-900 px-1.5 text-xs text-white dark:bg-zinc-100 dark:text-zinc-900"
+				>{filterCount}</span
+			>{/if}</button
+	>
+	<div class="contents max-md:hidden">{@render filterControls()}</div>
 	{#snippet activeChip(text: string, clear: Partial<Filters>)}
 		<button
 			class="chip border-zinc-900 dark:border-zinc-100"
@@ -570,7 +649,7 @@
 		>
 	{/if}
 	<span class="ml-auto text-zinc-400">{count}</span>
-	<details class="relative" bind:this={columnsMenu}>
+	<details class="relative max-md:hidden" bind:this={columnsMenu}>
 		<summary
 			class="cursor-pointer list-none rounded px-1.5 py-0.5 text-zinc-500 select-none hover:bg-zinc-100 dark:hover:bg-zinc-900"
 			title="Show or hide columns">Columns <TriangleDown aria-hidden="true" /></summary
@@ -688,7 +767,123 @@
 	</th>
 {/snippet}
 
-<div class="mt-3 overflow-x-auto">
+{#snippet emptyMessage()}
+	{#if data.total}
+		Page {filters.page} is past the end.
+		<a href={pageUrl(pages)} class="underline">Go to page {pages}</a>
+	{:else if inboxOnly}
+		Inbox is clear. Capture an idea whenever you need to.
+	{:else if isFiltered}
+		No issues match these filters.
+	{:else}
+		No issues yet — add one with quick add (press n, or + on a phone).
+	{/if}
+{/snippet}
+
+<!-- phones: cards; swipe right to close (or reopen), left to add to / remove from Today -->
+<ul
+	class="-mx-4 mt-3 divide-y divide-zinc-100 border-y border-zinc-100 md:hidden dark:divide-zinc-900 dark:border-zinc-900"
+>
+	{#each data.issues as issue (issue.id)}
+		{@const status = statusById.get(issue.statusId)}
+		{@const closed = !!status?.isClosed}
+		{@const starred = data.todayIds.includes(issue.id)}
+		<li
+			class="relative overflow-hidden"
+			{@attach swipe({
+				right: closed
+					? openStatus && {
+							label: 'Reopen',
+							cls: 'bg-blue-600',
+							run: () => setStatusWithUndo(issue.id, issue.statusId, openStatus.id, 'Reopened')
+						}
+					: closedStatus && {
+							label: `✓ ${closedStatus.name}`,
+							cls: 'bg-green-600',
+							run: () => setStatusWithUndo(issue.id, issue.statusId, closedStatus.id, 'Closed')
+						},
+				left: closed
+					? undefined
+					: {
+							label: starred ? 'Remove from Today' : '★ Today',
+							cls: 'bg-amber-500',
+							run: () => toggleToday(issue.id, starred)
+						}
+			})}
+		>
+			<a
+				href="/issues/{issue.id}"
+				class="pressable relative block px-4 py-3 {fresh.includes(issue.id)
+					? 'bg-amber-50 dark:bg-amber-950'
+					: 'bg-white dark:bg-zinc-950'}"
+			>
+				<span class="flex items-start gap-2">
+					<StatusIcon {status} class="mt-[3px] shrink-0" />
+					<span
+						class="min-w-0 flex-1 text-[15px] leading-snug break-words {closed
+							? 'text-zinc-400 line-through decoration-zinc-300 dark:decoration-zinc-700'
+							: ''}">{issue.title}</span
+					>
+					{#if starred}<StarFill
+							aria-label="In Today"
+							class="icon mt-[3px] shrink-0 text-amber-500"
+						/>{/if}
+				</span>
+				<span
+					class="mt-1 flex flex-wrap items-center gap-x-2.5 gap-y-0.5 pl-6 text-xs text-zinc-500"
+				>
+					<span class="text-zinc-400">#{issue.id}</span>
+					<span class={TYPE_CLASS[issue.type]}
+						><TypeIcon type={issue.type} class="mr-0.5" />{TYPE_LABEL[issue.type]}</span
+					>
+					{#if issue.appId === null}
+						<span class="text-zinc-400"><Inbox aria-hidden="true" class="icon mr-0.5" />Inbox</span>
+					{:else}
+						<span class="inline-flex items-center gap-1"
+							><span class="size-2 rounded-full" style="background:{issue.appColor}"
+							></span>{issue.appName}</span
+						>
+					{/if}
+					<span class={PRIORITY_CLASS[issue.priority]}
+						><PriorityIcon priority={issue.priority} class="mr-0.5" />{PRIORITIES[issue.priority]
+							?.short}</span
+					>
+					{#if issue.isBlocked && !closed}
+						<span class="text-red-500"><Blocked aria-hidden="true" /> blocked</span>
+					{/if}
+					{#if issue.type === 'bug' && issue.severity}
+						<span class={SEVERITY_CLASS[issue.severity]}>{issue.severity}</span>
+					{/if}
+					{#if issue.dueDate}
+						<span class={issue.dueDate < today && !closed ? 'text-red-500' : ''}
+							><Calendar aria-hidden="true" /> {issue.dueDate}</span
+						>
+					{/if}
+					{#if issue.subtaskCount}
+						<span
+							class={issue.subtaskDone === issue.subtaskCount
+								? 'text-green-600 dark:text-green-400'
+								: ''}><Tasklist aria-hidden="true" /> {issue.subtaskDone}/{issue.subtaskCount}</span
+						>
+					{/if}
+					{#if issue.commentCount}<span><Comment aria-hidden="true" /> {issue.commentCount}</span
+						>{/if}
+					{#if issue.attachmentCount}<span
+							><Paperclip aria-hidden="true" /> {issue.attachmentCount}</span
+						>{/if}
+					{#each issue.labels as l (l)}<span class="text-zinc-400">+{l}</span>{/each}
+					<span class="ml-auto text-zinc-400" title="Updated {fullDate(issue.updatedAt)}"
+						>{ago(issue.updatedAt)}</span
+					>
+				</span>
+			</a>
+		</li>
+	{:else}
+		<li class="px-4 py-12 text-center text-zinc-400">{@render emptyMessage()}</li>
+	{/each}
+</ul>
+
+<div class="mt-3 overflow-x-auto max-md:hidden">
 	<table class="w-full border-collapse text-left">
 		<thead class="border-b border-zinc-200 text-xs text-zinc-500 dark:border-zinc-800">
 			<tr>
@@ -922,22 +1117,65 @@
 						colspan={8 + OPTIONAL_COLUMNS.filter((c) => showColumn(c.key)).length}
 						class="py-12 text-center text-zinc-400"
 					>
-						{#if data.total}
-							Page {filters.page} is past the end.
-							<a href={pageUrl(pages)} class="underline">Go to page {pages}</a>
-						{:else if inboxOnly}
-							Inbox is clear. Capture an idea above whenever you need to.
-						{:else if isFiltered}
-							No issues match these filters.
-						{:else}
-							No issues yet — add one above (press n).
-						{/if}
+						{@render emptyMessage()}
 					</td>
 				</tr>
 			{/each}
 		</tbody>
 	</table>
 </div>
+
+{#if filtersOpen}
+	<Sheet label="Filters" onclose={() => (filtersOpen = false)}>
+		<div class="mb-3 flex items-center justify-between">
+			<h2 class="text-base font-semibold">Filters</h2>
+			{#if filterCount}
+				<button
+					class="text-sm text-zinc-500"
+					onclick={() =>
+						setFilters({
+							status: 'open',
+							types: [],
+							priorities: [],
+							overdue: false,
+							dateFrom: '',
+							dateTo: '',
+							label: '',
+							milestone: '',
+							severities: [],
+							envs: []
+						})}>Reset</button
+				>
+			{/if}
+		</div>
+		<div class="flex flex-wrap items-center gap-2">{@render filterControls()}</div>
+		<div class="mt-4 flex items-center gap-2">
+			<label class="flex min-w-0 flex-1 items-center gap-2 text-sm text-zinc-500"
+				>Sort
+				<select
+					class="input min-w-0 flex-1"
+					value={filters.sort}
+					onchange={(e) => sortBy(e.currentTarget.value as Sort)}
+				>
+					{#each SORTS as so (so)}<option value={so}>{SORT_LABEL[so]}</option>{/each}
+				</select>
+			</label>
+			<button
+				type="button"
+				class="btn inline-flex items-center gap-1"
+				aria-label="Sort direction: {filters.dir === 'asc' ? 'ascending' : 'descending'}"
+				onclick={() => setFilters({ dir: filters.dir === 'asc' ? 'desc' : 'asc' })}
+				>{#if filters.dir === 'asc'}<SortAsc aria-hidden="true" class="icon" /> Asc{:else}<SortDesc
+						aria-hidden="true"
+						class="icon"
+					/> Desc{/if}</button
+			>
+		</div>
+		<button class="btn-primary mt-4 w-full py-2" onclick={() => (filtersOpen = false)}
+			>Show {data.total.toLocaleString()} issue{data.total === 1 ? '' : 's'}</button
+		>
+	</Sheet>
+{/if}
 
 <p class="mt-2 hidden text-xs text-zinc-400 md:block">
 	<span class="kbd">j</span>/<span class="kbd">k</span> move · <span class="kbd">x</span> select ·
@@ -973,7 +1211,7 @@
 
 {#if pages > 1}
 	<nav class="mt-3 flex items-center justify-end gap-2 text-zinc-500">
-		<span class="mr-auto text-zinc-400">{count}</span>
+		<span class="mr-auto text-zinc-400 max-md:hidden">{count}</span>
 		{#snippet pageLink(label: Snippet, n: number)}
 			{#if n >= 1 && n <= pages && n !== filters.page}
 				<a href={pageUrl(n)} class="btn">{@render label()}</a>
@@ -981,13 +1219,25 @@
 				<span class="btn pointer-events-none opacity-40">{@render label()}</span>
 			{/if}
 		{/snippet}
-		{#snippet first()}<MoveToStart aria-hidden="true" class="icon" /> First{/snippet}
-		{#snippet prev()}<ArrowLeft aria-hidden="true" class="icon" /> Prev{/snippet}
-		{#snippet next()}Next <ArrowRight aria-hidden="true" class="icon" />{/snippet}
-		{#snippet last()}Last <MoveToEnd aria-hidden="true" class="icon" />{/snippet}
+		{#snippet first()}<MoveToStart aria-hidden="true" class="icon" /><span class="max-sm:sr-only">
+				First</span
+			>{/snippet}
+		{#snippet prev()}<ArrowLeft aria-hidden="true" class="icon" /><span class="max-sm:sr-only">
+				Prev</span
+			>{/snippet}
+		{#snippet next()}<span class="max-sm:sr-only">Next </span><ArrowRight
+				aria-hidden="true"
+				class="icon"
+			/>{/snippet}
+		{#snippet last()}<span class="max-sm:sr-only">Last </span><MoveToEnd
+				aria-hidden="true"
+				class="icon"
+			/>{/snippet}
 		{@render pageLink(first, 1)}
 		{@render pageLink(prev, filters.page - 1)}
-		<span class="px-1">Page {Math.min(filters.page, pages)} of {pages}</span>
+		<span class="px-1 max-md:flex-1 max-md:text-center"
+			>Page {Math.min(filters.page, pages)} of {pages}</span
+		>
 		{@render pageLink(next, filters.page + 1)}
 		{@render pageLink(last, pages)}
 	</nav>
