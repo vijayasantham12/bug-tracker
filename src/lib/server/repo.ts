@@ -907,7 +907,9 @@ export type DoneIssue = Issue & { closedDay: string };
  * right day.
  */
 export async function listDone(userId: number, weeks: number, app: string | null) {
-	const [user] = await sql<{ timezone: string | null }[]>`select timezone from users where id = ${userId}`;
+	const [user] = await sql<
+		{ timezone: string | null }[]
+	>`select timezone from users where id = ${userId}`;
 	const tz = (await pgTimezone(user?.timezone)) ?? sql`current_setting('TimeZone')`;
 	const start = sql`(date_trunc('week', now() at time zone ${tz}) - ${weeks - 1} * interval '1 week')`;
 	const byApp = app ? sql`and lower(a.name) = ${app.toLowerCase()}` : sql``;

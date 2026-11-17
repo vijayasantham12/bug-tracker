@@ -166,7 +166,7 @@
 	<button
 		bind:this={trigger}
 		type="button"
-		class="relative flex h-8 w-8 items-center justify-center rounded text-zinc-500 hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-blue-500 dark:hover:bg-zinc-800"
+		class="relative flex size-10 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-blue-500 active:bg-zinc-100 md:size-8 md:rounded dark:hover:bg-zinc-800 dark:active:bg-zinc-800"
 		aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'}
 		aria-expanded={open}
 		aria-haspopup="dialog"
@@ -174,22 +174,25 @@
 		title="Notifications"
 		onclick={toggle}
 	>
-		<Bell aria-hidden="true" class="icon size-4" />
+		<Bell aria-hidden="true" class="icon size-5 md:size-4" />
 		{#if unread > 0}
 			<span
-				class="absolute -top-1 -right-1 min-w-4 rounded-full bg-red-600 px-1 text-center text-[10px] leading-4 font-semibold text-white"
+				class="absolute top-0.5 right-0.5 min-w-4 rounded-full bg-red-600 px-1 text-center text-[10px] leading-4 font-semibold text-white md:-top-1 md:-right-1"
 				aria-hidden="true">{unread > 99 ? '99+' : unread}</span
 			>
 		{/if}
 	</button>
 	{#if open}
+		<!-- phones: dim the page behind the bottom sheet -->
+		<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -->
+		<div class="fixed inset-0 z-50 bg-zinc-950/40 sm:hidden" onclick={() => close(true)}></div>
 		<div
 			bind:this={panel}
 			id="notification-inbox"
 			role="dialog"
 			aria-label="Notifications"
 			tabindex="-1"
-			class="fixed top-14 right-2 left-2 z-50 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-xl outline-none sm:absolute sm:top-full sm:right-0 sm:left-auto sm:mt-2 sm:w-96 dark:border-zinc-800 dark:bg-zinc-950"
+			class="fixed inset-x-0 bottom-0 z-50 overflow-hidden rounded-t-2xl border-t border-zinc-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-xl outline-none sm:absolute sm:inset-x-auto sm:top-full sm:right-0 sm:bottom-auto sm:mt-2 sm:w-96 sm:rounded-lg sm:border sm:pb-0 dark:border-zinc-800 dark:bg-zinc-950"
 			onkeydown={(event) => {
 				if (event.key === 'Escape') {
 					event.preventDefault();
@@ -214,7 +217,7 @@
 					>
 					<button
 						type="button"
-						class="rounded px-1 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+						class="flex size-9 items-center justify-center rounded-full text-zinc-500 hover:bg-zinc-100 sm:size-auto sm:rounded sm:px-1 dark:hover:bg-zinc-800"
 						aria-label="Close notifications"
 						onclick={() => close(true)}><X aria-hidden="true" /></button
 					>
@@ -231,7 +234,10 @@
 					>
 				</div>
 			{/if}
-			<div class="max-h-[min(65vh,32rem)] overflow-y-auto overscroll-contain" aria-busy={loading}>
+			<div
+				class="max-h-[70dvh] overflow-y-auto overscroll-contain sm:max-h-[min(65vh,32rem)]"
+				aria-busy={loading}
+			>
 				{#if !loaded && loading}
 					<p role="status" class="px-4 py-10 text-center text-sm text-zinc-500">
 						Loading notifications…
