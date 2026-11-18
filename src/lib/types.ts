@@ -33,13 +33,16 @@ export const ENVIRONMENTS = [
 ] as const;
 export type Environment = (typeof ENVIRONMENTS)[number]['value'];
 
-/** Closing a repeating issue creates the next one, due one interval later. */
+/**
+ * Closing a repeating issue creates the next one, due one interval later. The open list keeps
+ * it under "Upcoming" until it is `leadDays` from due (null: always shown).
+ */
 export const REPEATS = [
-	{ value: 'daily', label: 'Daily', interval: '1 day' },
-	{ value: 'weekly', label: 'Weekly', interval: '1 week' },
-	{ value: 'monthly', label: 'Monthly', interval: '1 month' },
-	{ value: 'quarterly', label: 'Quarterly', interval: '3 months' },
-	{ value: 'yearly', label: 'Yearly', interval: '1 year' }
+	{ value: 'daily', label: 'Daily', interval: '1 day', leadDays: null },
+	{ value: 'weekly', label: 'Weekly', interval: '1 week', leadDays: 2 },
+	{ value: 'monthly', label: 'Monthly', interval: '1 month', leadDays: 7 },
+	{ value: 'quarterly', label: 'Quarterly', interval: '3 months', leadDays: 14 },
+	{ value: 'yearly', label: 'Yearly', interval: '1 year', leadDays: 30 }
 ] as const;
 export type Repeat = (typeof REPEATS)[number]['value'];
 

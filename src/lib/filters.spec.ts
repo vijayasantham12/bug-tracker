@@ -26,7 +26,7 @@ describe('dashboard filters', () => {
 	});
 
 	it('round-trips through the query string', () => {
-		for (const q of ['size=xs,s', 'due=week', 'due=overdue', 'blocked=1']) {
+		for (const q of ['size=xs,s', 'due=week', 'due=overdue', 'blocked=1', 'upcoming=1']) {
 			const f = parse(q);
 			expect(parse(filtersToQuery(f).slice(1))).toEqual(f);
 		}

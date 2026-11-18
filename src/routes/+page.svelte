@@ -166,6 +166,7 @@
 			filters.types.length,
 			filters.priorities.length,
 			filters.overdue,
+			filters.upcoming,
 			filters.dateFrom || filters.dateTo,
 			filters.label,
 			filters.milestone,
@@ -509,6 +510,17 @@
 			: 'text-zinc-500'}"
 		onclick={() => setFilters({ overdue: !filters.overdue, dueWeek: false })}>Overdue</button
 	>
+	{#if data.upcoming || filters.upcoming}
+		<button
+			class="rounded border border-zinc-300 px-2 py-1 dark:border-zinc-700 {filters.upcoming
+				? 'bg-zinc-200 dark:bg-zinc-800'
+				: 'text-zinc-500'}"
+			aria-pressed={filters.upcoming}
+			title="Repeating issues not yet near their due date"
+			onclick={() => setFilters({ upcoming: !filters.upcoming })}
+			>Upcoming{data.upcoming ? ` (${data.upcoming})` : ''}</button
+		>
+	{/if}
 	<div class="flex flex-wrap items-center gap-2" role="group" aria-label="Date range filter">
 		<select
 			class="input"
@@ -1158,6 +1170,7 @@
 							types: [],
 							priorities: [],
 							overdue: false,
+							upcoming: false,
 							dateFrom: '',
 							dateTo: '',
 							label: '',

@@ -89,8 +89,31 @@ export function prefixTsQuery(q: string): string | null {
 
 // ---------- issues ----------
 
-/** One page of matching issues plus the total match count. */
-export async function listIssues(f: Filters): Promise<{ issues: Issue[]; total: number }> {
+const LEADS = REPEATS.filter((r) => r.leadDays !== null);
+/** A repeating issue still further from its due date than its repeat's lead time. */
+const NOT_YET_DUE = sql`coalesce(i.due_date > current_date +
+	(${LEADS.map((r) => r.leadDays)}::int[])[array_position(${LEADS.map((r) => r.value)}::text[], i.repeat)],
+	false)`;
+
+/**
+ * Whether these filters are the kind of browsing where not-yet-due repeating issues are clutter.
+ * Searching, subtasks or an explicit due-date filter always show everything that matches.
+ */
+const browsesOpen = (f: Filters) =>
+	f.status !== 'closed' &&
+	!f.q &&
+	!f.parent &&
+	!f.overdue &&
+	!f.dueWeek &&
+	!(f.dateField === 'due' && (f.dateFrom || f.dateTo));
+
+/**
+ * One page of matching issues plus the total match count, and how many not-yet-due repeating
+ * issues match too (left out unless `f.upcoming`).
+ */
+export async function listIssues(
+	f: Filters
+): Promise<{ issues: Issue[]; total: number; upcoming: number }> {
 	const where = [sql`i.deleted_at is null`];
 	if (f.inbox) where.push(sql`i.app_id is null`);
 	if (f.apps.length)
@@ -140,7 +163,9 @@ export async function listIssues(f: Filters): Promise<{ issues: Issue[]; total: 
 					: sql`i.title ilike ${like}`
 		);
 	}
-	const cond = where.reduce((acc, w) => sql`${acc} and ${w}`);
+	const browsing = browsesOpen(f);
+	const base = where.reduce((acc, w) => sql`${acc} and ${w}`);
+	const cond = browsing && !f.upcoming ? sql`${base} and not ${NOT_YET_DUE}` : base;
 	const dir = f.dir === 'asc' ? sql`asc` : sql`desc`;
 	// best match first while searching with the default sort
 	const order =
@@ -150,16 +175,20 @@ export async function listIssues(f: Filters): Promise<{ issues: Issue[]; total: 
 
 	const from = sql`from issues i left join apps a on a.id = i.app_id join statuses s on s.id = i.status_id`;
 
-	const [issues, [{ total }]] = await Promise.all([
+	const [issues, [{ total }], [{ upcoming }]] = await Promise.all([
 		sql<Issue[]>`
 			select ${issueColumns} ${from}
 			where ${cond}
 			order by ${order}
 			limit ${f.limit ?? PAGE_SIZE} offset ${(f.page - 1) * PAGE_SIZE}
 		`,
-		sql<{ total: number }[]>`select count(*)::int as total ${from} where ${cond}`
+		sql<{ total: number }[]>`select count(*)::int as total ${from} where ${cond}`,
+		browsing
+			? sql<{ upcoming: number }[]>`
+				select count(*)::int as upcoming ${from} where ${base} and ${NOT_YET_DUE}`
+			: [{ upcoming: 0 }]
 	]);
-	return { issues, total };
+	return { issues, total, upcoming };
 }
 
 export async function getIssue(id: number) {
