@@ -13,6 +13,7 @@ export const GET: RequestHandler = async ({ locals, url }) => {
 	const filters = parseFilters(new URLSearchParams());
 	filters.q = q;
 	filters.status = 'all';
+	filters.upcoming = true;
 	filters.limit = 8;
 	filters.sort = q ? 'id' : 'updated';
 	const exactId = /^#?\d+$/.test(q);

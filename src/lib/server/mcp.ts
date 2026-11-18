@@ -141,6 +141,7 @@ const listIssuesTool: Tool = {
 	},
 	async run(args) {
 		const f = parseFilters(new URLSearchParams());
+		f.upcoming = true;
 		const app = str(args.app);
 		if (app) f.apps = [app];
 		const status = str(args.status)?.toLowerCase() ?? 'open';

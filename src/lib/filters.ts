@@ -64,6 +64,8 @@ export interface Filters {
 	dueWeek: boolean;
 	/** in a status named "Blocked", or blocked by an open issue */
 	blocked: boolean;
+	/** also show repeating issues that are not yet near their due date (see REPEATS.leadDays) */
+	upcoming: boolean;
 	q: string;
 	sort: Sort;
 	dir: 'asc' | 'desc';
@@ -112,6 +114,7 @@ export function parseFilters(sp: { get(name: string): string | null }): Filters 
 		overdue: sp.get('due') === 'overdue',
 		dueWeek: sp.get('due') === 'week',
 		blocked: sp.get('blocked') === '1',
+		upcoming: sp.get('upcoming') === '1',
 		q: sp.get('q') ?? '',
 		sort: SORTS.includes(sort) ? sort : 'id',
 		dir: sp.get('dir') === 'asc' ? 'asc' : 'desc',
@@ -139,6 +142,7 @@ export function filtersToQuery(f: Filters): string {
 	if (f.overdue) sp.set('due', 'overdue');
 	else if (f.dueWeek) sp.set('due', 'week');
 	if (f.blocked) sp.set('blocked', '1');
+	if (f.upcoming) sp.set('upcoming', '1');
 	if (f.q) sp.set('q', f.q);
 	if (f.sort !== 'id') sp.set('sort', f.sort);
 	if (f.dir !== 'desc') sp.set('dir', f.dir);

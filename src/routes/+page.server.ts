@@ -6,10 +6,10 @@ import { requireUser } from '#lib/server/session.ts';
 
 export const load: PageServerLoad = async ({ url, locals }) => {
 	const filters = parseFilters(url.searchParams);
-	const [{ issues, total }, labels, views] = await Promise.all([
+	const [{ issues, total, upcoming }, labels, views] = await Promise.all([
 		listIssues(filters),
 		listLabels(),
 		listViews(requireUser(locals).id)
 	]);
-	return { issues, total, labels, views };
+	return { issues, total, upcoming, labels, views };
 };

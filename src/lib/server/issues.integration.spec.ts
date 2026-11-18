@@ -290,6 +290,24 @@ describe.skipIf(!harness.enabled)('issue context and Trash against Postgres', ()
 		expect(await getIssue(id)).toMatchObject({ repeat: 'weekly', remindAt: future });
 		expect((await listIssues(filters('status=all'))).total).toBe(1);
 	});
+	it('keeps not-yet-due repeating issues under Upcoming until their lead time', async () => {
+		const inDays = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+		const yearly = await create('Renew domain');
+		await updateIssue(yearly, { repeat: 'yearly', dueDate: inDays(200) }, userId);
+		const soon = await create('Pay insurance');
+		await updateIssue(soon, { repeat: 'yearly', dueDate: inDays(10) }, userId);
+		const daily = await create('Water plants');
+		await updateIssue(daily, { repeat: 'daily', dueDate: inDays(3) }, userId);
+		const plain = await create('Conference talk');
+		await updateIssue(plain, { dueDate: inDays(200) }, userId);
+
+		const open = await listIssues(filters());
+		expect(open.issues.map((i) => i.id).sort()).toEqual([soon, daily, plain].sort());
+		expect(open).toMatchObject({ total: 3, upcoming: 1 });
+		expect(await listIssues(filters('upcoming=1'))).toMatchObject({ total: 4, upcoming: 1 });
+		expect((await listIssues(filters('q=renew'))).issues.map((i) => i.id)).toEqual([yearly]);
+	});
+
 	it('excludes trashed issues from daily summaries and supports resume and restore through MCP', async () => {
 		const id = await create('MCP context');
 		await updateIssue(
